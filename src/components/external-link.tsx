@@ -10,11 +10,11 @@ export function ExternalLink({ href, ...rest }: Props) {
       target="_blank"
       {...rest}
       href={href}
-      onPress={async (event) => {
+      onPress={async event => {
         if (process.env.EXPO_OS !== 'web') {
-          // Prevent the default behavior of linking to the default browser on native.
+          // evitamos que native abra el navegador por defecto.
           event.preventDefault();
-          // Open the link in an in-app browser.
+          // abrimos el enlace dentro de la app para no perder el contexto.
           await openBrowserAsync(href, {
             presentationStyle: WebBrowserPresentationStyle.AUTOMATIC,
           });
