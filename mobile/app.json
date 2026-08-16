@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "Nexo Solidario",
+    "slug": "capa8team",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/nexo-icon.png",
+    "scheme": "capa8team",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "icon": "./assets/images/nexo-icon.png",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Nexo Solidario usa la cámara para agregar fotos a tus publicaciones y mensajes.",
+        "NSPhotoLibraryUsageDescription": "Nexo Solidario accede a tu biblioteca para que puedas elegir fotos para tus publicaciones y mensajes."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#EEF5EC",
+        "foregroundImage": "./assets/images/nexo-icon-foreground.png",
+        "monochromeImage": "./assets/images/nexo-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.sollc1tosteam.capa8team"
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/nexo-icon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#FBF9F8",
+          "image": "./assets/images/nexo-icon-foreground.png",
+          "imageWidth": 96
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Nexo Solidario accede a tu biblioteca para que puedas elegir fotos para tus publicaciones y mensajes.",
+          "cameraPermission": "Nexo Solidario usa la cámara para agregar fotos a tus publicaciones y mensajes.",
+          "microphonePermission": false
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "95cfa77b-b041-4715-a858-56188fa81338"
+      }
+    },
+    "owner": "sollc1tos-team"
+  }
+}

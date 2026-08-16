@@ -1,0 +1,55 @@
+import { MD3LightTheme, type MD3Theme } from 'react-native-paper';
+
+// Los roles siguen una paleta breve: el verde queda reservado para acciones
+// principales, selección y estados positivos.
+export const brandPalette = {
+  background: '#FBF9F8',
+  surface: '#FFFFFF',
+  surfaceSoft: '#EEF5EC',
+  surfaceMuted: '#F3F1F0',
+  text: '#1B1C1C',
+  textSecondary: '#40493D',
+  border: '#859180',
+  primary: '#2E7D32',
+  primaryDark: '#17551D',
+  primaryContainer: '#EEF5EC',
+  onPrimaryContainer: '#174C1E',
+  error: '#BA1A1A',
+  errorContainer: '#FFDAD6',
+} as const;
+
+export const paperTheme: MD3Theme = {
+  ...MD3LightTheme,
+  roundness: 12,
+  colors: {
+    ...MD3LightTheme.colors,
+    background: brandPalette.background,
+    surface: brandPalette.surface,
+    surfaceVariant: brandPalette.surfaceSoft,
+    surfaceDisabled: brandPalette.surfaceMuted,
+    onBackground: brandPalette.text,
+    onSurface: brandPalette.text,
+    onSurfaceVariant: brandPalette.textSecondary,
+    outline: brandPalette.border,
+    outlineVariant: brandPalette.border,
+    primary: brandPalette.primary,
+    onPrimary: '#FFFFFF',
+    primaryContainer: brandPalette.primaryContainer,
+    onPrimaryContainer: brandPalette.onPrimaryContainer,
+    secondary: '#596255',
+    onSecondary: '#FFFFFF',
+    secondaryContainer: brandPalette.surfaceMuted,
+    onSecondaryContainer: brandPalette.text,
+    tertiary: '#60645E',
+    onTertiary: '#FFFFFF',
+    tertiaryContainer: brandPalette.surfaceMuted,
+    onTertiaryContainer: brandPalette.text,
+    error: brandPalette.error,
+    onError: '#FFFFFF',
+    errorContainer: brandPalette.errorContainer,
+    onErrorContainer: '#93000A',
+    inverseSurface: '#30312F',
+    inverseOnSurface: '#F2F0EE',
+    inversePrimary: '#8ED58A',
+  },
+};

@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true, // ??
+    "skipLibCheck": true,// no checkea todos los archivos .d.ts
+    "target": "es2023",//especifica la version de JavaSrcipt 
+    "allowJs": true,//permite archivos .js
+    "resolveJsonModule": true,// habilita la importacion de archivos .json
+    "moduleDetection": "force",//todos los archivos son tratados como modulos (ESM)
+    "isolatedModules": true,//cada archivo compila de forma independiente
+    "verbatimModuleSyntax": true,//??
+    "composite": true,
+    "moduleResolution": "bundler",
+    "module": "esnext",
+
+      /* Linting */
+    "strict": true,//se comprueba todos los types
+    "noUnusedLocals": true,//genera errores por var locales no utilizadas
+    "noUnusedParameters": true,// genera errores por parametros no utilizados
+    "erasableSyntaxOnly": true,// cague, la sintaxis que no se puede generar en JS se elimina sin afectar el resultado
+    "noUncheckedSideEffectImports": true,//??
+    "ignoreDeprecations":"6.0",
+  }
+}
