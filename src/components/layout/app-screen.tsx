@@ -35,7 +35,11 @@ export function AppScreen({ children, footer, contentStyle, scrollable = true }:
             <View style={[styles.content, contentStyle]}>{children}</View>
           )}
 
-          {footer ? <View style={styles.footer}>{footer}</View> : null}
+          {footer ? (
+            <View style={styles.footer}>
+              <View style={styles.footerInner}>{footer}</View>
+            </View>
+          ) : null}
         </View>
       </Surface>
     </SafeAreaView>
@@ -62,11 +66,19 @@ const styles = StyleSheet.create({
   // este contenedor concentra el contenido principal de cada pantalla.
   content: {
     flexGrow: 1,
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
   },
   // este espacio se usa para acciones fijas o barras inferiores.
   footer: {
     paddingHorizontal: 16,
     paddingBottom: 16,
     paddingTop: 8,
+  },
+  footerInner: {
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
   },
 });

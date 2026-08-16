@@ -14,8 +14,8 @@ export const brandPalette = {
   primaryDark: '#17551D',
   primaryContainer: '#EEF5EC',
   onPrimaryContainer: '#174C1E',
-  urgent: '#BA1A1A',
-  urgentContainer: '#FFDAD6',
+  error: '#BA1A1A',
+  errorContainer: '#FFDAD6',
 } as const;
 
 export const paperTheme: MD3Theme = {
@@ -44,9 +44,9 @@ export const paperTheme: MD3Theme = {
     onTertiary: '#FFFFFF',
     tertiaryContainer: brandPalette.surfaceMuted,
     onTertiaryContainer: brandPalette.text,
-    error: brandPalette.urgent,
+    error: brandPalette.error,
     onError: '#FFFFFF',
-    errorContainer: brandPalette.urgentContainer,
+    errorContainer: brandPalette.errorContainer,
     onErrorContainer: '#93000A',
     inverseSurface: '#30312F',
     inverseOnSurface: '#F2F0EE',

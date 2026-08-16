@@ -6,9 +6,13 @@
     "orientation": "portrait",
     "icon": "./assets/images/nexo-icon.png",
     "scheme": "capa8team",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "ios": {
-      "icon": "./assets/images/nexo-icon.png"
+      "icon": "./assets/images/nexo-icon.png",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Nexo Solidario usa la cámara para agregar fotos a tus publicaciones y mensajes.",
+        "NSPhotoLibraryUsageDescription": "Nexo Solidario accede a tu biblioteca para que puedas elegir fotos para tus publicaciones y mensajes."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -31,6 +35,14 @@
           "backgroundColor": "#FBF9F8",
           "image": "./assets/images/nexo-icon-foreground.png",
           "imageWidth": 96
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Nexo Solidario accede a tu biblioteca para que puedas elegir fotos para tus publicaciones y mensajes.",
+          "cameraPermission": "Nexo Solidario usa la cámara para agregar fotos a tus publicaciones y mensajes.",
+          "microphonePermission": false
         }
       ]
     ],

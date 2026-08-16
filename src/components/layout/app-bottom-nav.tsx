@@ -31,13 +31,17 @@ export function AppBottomNav({ items, activeKey, onChange }: AppBottomNavProps) 
   // este nav usa una superficie simple con ripple tactil.
   return (
     <Surface style={[styles.container, { borderTopColor: theme.colors.outlineVariant }]} elevation={2}>
-      {items.map(item => {
+      <View style={styles.inner} accessibilityRole="tablist">
+        {items.map(item => {
         const selected = item.key === activeKey;
 
         return (
           <TouchableRipple
             key={item.key}
             onPress={() => onChange(item.key)}
+            accessibilityRole="tab"
+            accessibilityLabel={item.label}
+            accessibilityState={{ selected }}
             style={styles.item}
             borderless>
             <View
@@ -69,7 +73,8 @@ export function AppBottomNav({ items, activeKey, onChange }: AppBottomNavProps) 
             </View>
           </TouchableRipple>
         );
-      })}
+        })}
+      </View>
     </Surface>
   );
 }
@@ -77,8 +82,13 @@ export function AppBottomNav({ items, activeKey, onChange }: AppBottomNavProps) 
 const styles = StyleSheet.create({
   // esta barra queda fija al pie de la app.
   container: {
-    flexDirection: 'row',
     borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  inner: {
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
+    flexDirection: 'row',
   },
   // cada item mantiene un area de toque amplia.
   item: {

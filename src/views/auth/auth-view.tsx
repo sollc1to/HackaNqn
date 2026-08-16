@@ -6,8 +6,6 @@ import {
   Button,
   Checkbox,
   IconButton,
-  Portal,
-  Snackbar,
   Surface,
   Text,
   TextInput,
@@ -44,13 +42,13 @@ export function AuthView() {
       return;
     }
 
-    if (!normalizedEmail.includes('@')) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       setMessage('Ingresá un correo electrónico válido.');
       return;
     }
 
-    if (password.length < 8) {
-      setMessage('La contraseña debe tener al menos 8 caracteres.');
+    if (password.length < 8 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+      setMessage('La contraseña debe tener 8 caracteres, mayúscula, minúscula y número.');
       return;
     }
 
@@ -66,7 +64,7 @@ export function AuthView() {
       return;
     }
 
-    setMessage(`Enviamos instrucciones de recuperación a ${email.trim()}.`);
+    setMessage(`Flujo de demostración iniciado para ${email.trim()}. El envío real requiere conectar el servicio de autenticación.`);
   };
 
   return (
@@ -103,8 +101,8 @@ export function AuthView() {
               mode="outlined"
               label="Nombre completo"
               placeholder="María González"
-              value={name}
-              onChangeText={setName}
+            value={name}
+              onChangeText={value => { setName(value); setMessage(''); }}
               autoComplete="name"
               outlineColor={theme.colors.outlineVariant}
               activeOutlineColor={theme.colors.primary}
@@ -117,7 +115,7 @@ export function AuthView() {
             label="Correo electrónico"
             placeholder="nombre@ejemplo.com"
             value={email}
-            onChangeText={setEmail}
+            onChangeText={value => { setEmail(value); setMessage(''); }}
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
@@ -131,7 +129,7 @@ export function AuthView() {
             label={mode === 'signup' ? 'Crear contraseña' : 'Contraseña'}
             placeholder="Mínimo 8 caracteres"
             value={password}
-            onChangeText={setPassword}
+            onChangeText={value => { setPassword(value); setMessage(''); }}
             secureTextEntry={!showPassword}
             autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
             outlineColor={theme.colors.outlineVariant}
@@ -161,10 +159,18 @@ export function AuthView() {
               </Button>
             </View>
           ) : (
-            <Text variant="bodySmall" style={[styles.terms, { color: theme.colors.onSurfaceVariant }]}>
-              Al crear una cuenta aceptás los términos y la política de privacidad.
-            </Text>
+            <View style={styles.termsWrap}>
+              <Text variant="bodySmall" style={[styles.terms, { color: theme.colors.onSurfaceVariant }]}>Al crear una cuenta aceptás los términos y la política de privacidad.</Text>
+              <Button compact mode="text" onPress={() => router.push({ pathname: '/safety', params: { section: 'policies' } })}>Leer políticas</Button>
+            </View>
           )}
+
+          {message ? (
+            <Surface accessibilityRole="alert" elevation={0} style={[styles.messageCard, { backgroundColor: theme.colors.surfaceVariant }]}>
+              <MaterialCommunityIcons name="information-outline" size={20} color={theme.colors.onSurfaceVariant} />
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurface, flex: 1 }}>{message}</Text>
+            </Surface>
+          ) : null}
 
           <Button
             mode="contained"
@@ -178,11 +184,6 @@ export function AuthView() {
         </View>
       </Surface>
 
-      <Portal>
-        <Snackbar visible={message.length > 0} onDismiss={() => setMessage('')} duration={3500}>
-          {message}
-        </Snackbar>
-      </Portal>
     </AppScreen>
   );
 }
@@ -240,6 +241,16 @@ const styles = StyleSheet.create({
   },
   terms: {
     lineHeight: 20,
+  },
+  termsWrap: {
+    gap: 2,
+  },
+  messageCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    borderRadius: 12,
+    padding: 11,
   },
   buttonContent: {
     minHeight: 50,

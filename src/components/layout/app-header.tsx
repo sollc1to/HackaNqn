@@ -34,7 +34,7 @@ export function AppHeader({
       mode="center-aligned"
       style={[styles.header, { backgroundColor: theme.colors.background, borderBottomColor: theme.colors.outlineVariant }]}>
       {onBackPress ? (
-        <Appbar.BackAction onPress={onBackPress} />
+        <Appbar.BackAction onPress={onBackPress} accessibilityLabel="Volver" />
       ) : (
         <View style={styles.sideSpacer} />
       )}
@@ -49,7 +49,7 @@ export function AppHeader({
       {rightContent ? (
         rightContent
       ) : rightIcon ? (
-        <Appbar.Action icon={rightIcon} onPress={onRightPress} />
+        <Appbar.Action icon={rightIcon} onPress={onRightPress} accessibilityLabel="Acción de la pantalla" />
       ) : (
         <View style={styles.sideSpacer} />
       )}

@@ -46,7 +46,7 @@ export function WelcomeView() {
               Comunidad de Neuquén
             </Text>
             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-              Personas y organizaciones verificadas cerca tuyo
+              Personas y organizaciones de la zona, con señales claras de confianza
             </Text>
           </View>
         </Surface>

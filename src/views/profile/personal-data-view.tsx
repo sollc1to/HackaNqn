@@ -1,281 +1,128 @@
-import { type ReactNode, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import {
-  Avatar,
-  Button,
-  Portal,
-  Snackbar,
-  Surface,
-  Text,
-  TextInput,
-  useTheme,
-} from 'react-native-paper';
+import { Button, Dialog, Portal, Surface, Text, TextInput, useTheme } from 'react-native-paper';
 
-import { AppHeader, AppScreen, SegmentedControl } from '@/components';
-import { currentUser } from '@/data/profile';
-import { pickImage } from '@/utils/pick-image';
+import { AppHeader, AppScreen, AuthorAvatar, RatingStars } from '@/components';
+import { currentUserId } from '@/data/authors';
+import { useAppData } from '@/state/app-data-context';
+import { formatDate } from '@/utils/date';
+import { pickImages } from '@/utils/pick-image';
 
-function SectionCard({ title, icon, children }: { title: string; icon: string; children: ReactNode }) {
-  const theme = useTheme();
-
-  return (
-    <Surface
-      elevation={0}
-      style={[
-        styles.sectionCard,
-        { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant },
-      ]}>
-      <View style={styles.sectionHeader}>
-        <MaterialCommunityIcons name={icon as never} size={22} color={theme.colors.onSurfaceVariant} />
-        <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-          {title}
-        </Text>
-      </View>
-      {children}
-    </Surface>
-  );
-}
+type Errors = Partial<Record<'name' | 'email' | 'phone' | 'location', string>>;
 
 export function PersonalDataView() {
   const router = useRouter();
   const theme = useTheme();
-  const [name, setName] = useState(currentUser.name);
-  const [email, setEmail] = useState(currentUser.email);
-  const [phone, setPhone] = useState(currentUser.phone);
-  const [location, setLocation] = useState(currentUser.location);
-  const [photoUri, setPhotoUri] = useState(currentUser.imageUri);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [feedback, setFeedback] = useState('');
+  const { authors, updateProfile, savedPosts } = useAppData();
+  const profile = authors.find(author => author.id === currentUserId)!;
+  const [name, setName] = useState(profile.name);
+  const [email, setEmail] = useState(profile.email ?? '');
+  const [phone, setPhone] = useState(profile.phone ?? '');
+  const [location, setLocation] = useState(profile.location);
+  const [photoDialog, setPhotoDialog] = useState(false);
+  const [errors, setErrors] = useState<Errors>({});
+  const [status, setStatus] = useState('');
 
-  const updateProfile = () => {
-    if (name.trim().length < 3 || !email.includes('@') || phone.trim().length < 8 || location.trim().length < 4) {
-      setFeedback('Revisá los datos del perfil antes de guardar.');
-      return;
-    }
-
-    setFeedback('Perfil actualizado correctamente.');
+  const update = () => {
+    const next: Errors = {};
+    if (name.trim().length < 3) next.name = 'Ingresá tu nombre completo.';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) next.email = 'Ingresá un correo válido.';
+    if (!/^\+?[0-9\s-]{8,18}$/.test(phone)) next.phone = 'Ingresá un teléfono válido, por ejemplo +54 299 555 0147.';
+    if (location.trim().length < 4) next.location = 'Indicá una ciudad o barrio aproximado.';
+    setErrors(next);
+    if (Object.keys(next).length) return;
+    updateProfile({ name: name.trim(), email: email.trim().toLowerCase(), phone: phone.trim(), location: location.trim(), initials: name.trim().split(/\s+/).slice(0, 2).map(word => word[0]).join('').toUpperCase() });
+    setStatus('Perfil actualizado correctamente.');
   };
 
-  const changePassword = () => {
-    if (!currentPassword || newPassword.length < 8) {
-      setFeedback('Ingresá tu contraseña actual y una nueva de al menos 8 caracteres.');
-      return;
+  const selectPhoto = async (source: 'camera' | 'library') => {
+    setPhotoDialog(false);
+    try {
+      const images = await pickImages(source, false);
+      if (!images[0]) return;
+      updateProfile({ imageUri: images[0].uri });
+      setStatus('Foto de perfil actualizada.');
+    } catch {
+      setStatus('No pudimos cambiar la foto. Revisá los permisos e intentá nuevamente.');
     }
-
-    setCurrentPassword('');
-    setNewPassword('');
-    setFeedback('Contraseña actualizada correctamente.');
-  };
-
-  const changePhoto = async () => {
-    const selectedUri = await pickImage(
-      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-    );
-    if (!selectedUri) return;
-    setPhotoUri(selectedUri);
-    setFeedback('Foto de perfil actualizada.');
   };
 
   return (
     <AppScreen contentStyle={styles.content}>
-      <AppHeader title="Perfil" onBackPress={() => router.back()} />
+      <AppHeader title="Mi perfil" onBackPress={() => router.back()} rightIcon="cog-outline" onRightPress={() => router.push('/settings')} />
 
       <View style={styles.hero}>
-        <Avatar.Image size={94} source={{ uri: photoUri }} />
+        <AuthorAvatar author={profile} size={94} />
         <View style={styles.heroCopy}>
-          <Text variant="headlineSmall" style={[styles.pageTitle, { color: theme.colors.onSurface }]}>
-            {name}
-          </Text>
-          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-            {currentUser.memberSince}
-          </Text>
-          <Button mode="outlined" compact icon="camera-outline" onPress={changePhoto} style={styles.photoButton}>
-            Cambiar foto
-          </Button>
+          <Text variant="headlineSmall" style={[styles.pageTitle, { color: theme.colors.onSurface }]}>{profile.name}</Text>
+          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>{profile.accountType === 'organization' ? 'Cuenta de organización' : 'Cuenta personal'} · desde {formatDate(profile.memberSince)}</Text>
+          <View style={styles.ratingRow}><RatingStars value={profile.rating} size={18} /><Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>{profile.rating.toFixed(1)} ({profile.reviewCount})</Text></View>
+          <Button mode="outlined" compact icon="camera-outline" onPress={() => setPhotoDialog(true)} style={styles.photoButton}>Cambiar foto</Button>
         </View>
       </View>
 
-      <View style={styles.horizontalPadding}>
-        <SegmentedControl
-          value="personal-data"
-          onValueChange={value => {
-            if (value === 'my-posts') router.push('/my-posts');
-          }}
-          options={[
-            { value: 'my-posts', label: 'Mis publicaciones' },
-            { value: 'personal-data', label: 'Datos personales' },
-          ]}
-        />
+      <View style={styles.quickActions}>
+        <Button mode="outlined" icon="clipboard-text-outline" onPress={() => router.push('/my-posts')}>Mis publicaciones</Button>
+        <Button mode="outlined" icon="bookmark-outline" onPress={() => router.push('/saved-posts')}>Guardadas ({savedPosts.length})</Button>
+        <Button mode="outlined" icon="cog-outline" onPress={() => router.push('/settings')}>Configuración</Button>
       </View>
 
       <Surface elevation={0} style={[styles.trustCard, { backgroundColor: theme.colors.primaryContainer }]}>
-        <View style={styles.trustItem}>
-          <MaterialCommunityIcons name="handshake-outline" size={24} color={theme.colors.primary} />
-          <Text variant="titleLarge" style={[styles.trustNumber, { color: theme.colors.onSurface }]}>
-            {currentUser.completedExchanges}
-          </Text>
-          <Text variant="bodySmall" style={[styles.trustLabel, { color: theme.colors.onSurfaceVariant }]}>
-            Intercambios completados
-          </Text>
-        </View>
+        <View style={styles.trustItem}><MaterialCommunityIcons name="handshake-outline" size={24} color={theme.colors.primary} /><Text variant="titleLarge" style={styles.trustNumber}>{profile.completedExchanges}</Text><Text variant="bodySmall" style={styles.trustLabel}>Intercambios completados</Text></View>
         <View style={[styles.trustDivider, { backgroundColor: theme.colors.outlineVariant }]} />
-        <View style={styles.trustItem}>
-          <MaterialCommunityIcons name="map-marker-outline" size={24} color={theme.colors.onSurfaceVariant} />
-          <Text variant="titleSmall" style={[styles.trustNumber, { color: theme.colors.onSurface }]}>
-            Confluencia
-          </Text>
-          <Text variant="bodySmall" style={[styles.trustLabel, { color: theme.colors.onSurfaceVariant }]}>
-            Zona aproximada
-          </Text>
-        </View>
+        <View style={styles.trustItem}><MaterialCommunityIcons name="star-outline" size={24} color="#9A6700" /><Text variant="titleLarge" style={styles.trustNumber}>{profile.rating.toFixed(1)}</Text><Text variant="bodySmall" style={styles.trustLabel}>Puntaje de la comunidad</Text></View>
       </Surface>
 
-      <SectionCard title="Información personal" icon="account-outline">
-        <TextInput
-          mode="outlined"
-          label="Nombre completo"
-          value={name}
-          onChangeText={setName}
-          outlineColor={theme.colors.outlineVariant}
-          activeOutlineColor={theme.colors.primary}
-        />
-        <TextInput
-          mode="outlined"
-          label="Correo electrónico"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          outlineColor={theme.colors.outlineVariant}
-          activeOutlineColor={theme.colors.primary}
-        />
-        <TextInput
-          mode="outlined"
-          label="Teléfono"
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-          outlineColor={theme.colors.outlineVariant}
-          activeOutlineColor={theme.colors.primary}
-          left={<TextInput.Icon icon="phone-outline" />}
-        />
-        <TextInput
-          mode="outlined"
-          label="Ciudad o barrio"
-          value={location}
-          onChangeText={setLocation}
-          outlineColor={theme.colors.outlineVariant}
-          activeOutlineColor={theme.colors.primary}
-          left={<TextInput.Icon icon="map-marker-outline" />}
-        />
-        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-          Solo mostramos una zona aproximada; la dirección exacta permanece privada.
-        </Text>
-        <Button mode="contained" contentStyle={styles.buttonContent} onPress={updateProfile}>
-          Actualizar perfil
-        </Button>
-      </SectionCard>
-
-      <SectionCard title="Seguridad" icon="lock-outline">
-        <TextInput
-          mode="outlined"
-          label="Contraseña actual"
-          value={currentPassword}
-          onChangeText={setCurrentPassword}
-          secureTextEntry
-          outlineColor={theme.colors.outlineVariant}
-          activeOutlineColor={theme.colors.primary}
-        />
-        <TextInput
-          mode="outlined"
-          label="Nueva contraseña"
-          placeholder="Mínimo 8 caracteres"
-          value={newPassword}
-          onChangeText={setNewPassword}
-          secureTextEntry
-          outlineColor={theme.colors.outlineVariant}
-          activeOutlineColor={theme.colors.primary}
-        />
-        <Button mode="outlined" contentStyle={styles.buttonContent} onPress={changePassword}>
-          Cambiar contraseña
-        </Button>
-      </SectionCard>
+      <Surface elevation={0} style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
+        <View style={styles.sectionHeader}><MaterialCommunityIcons name="account-outline" size={22} color={theme.colors.onSurfaceVariant} /><Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Información personal</Text></View>
+        <TextInput mode="outlined" label="Nombre completo" value={name} onChangeText={value => { setName(value.slice(0, 80)); setErrors(current => ({ ...current, name: undefined })); }} error={Boolean(errors.name)} />
+        <FieldMessage message={errors.name} />
+        <TextInput mode="outlined" label="Correo electrónico" value={email} onChangeText={value => { setEmail(value); setErrors(current => ({ ...current, email: undefined })); }} keyboardType="email-address" autoCapitalize="none" error={Boolean(errors.email)} />
+        <FieldMessage message={errors.email} />
+        <TextInput mode="outlined" label="Teléfono" value={phone} onChangeText={value => { setPhone(value.replace(/[^0-9+\s-]/g, '')); setErrors(current => ({ ...current, phone: undefined })); }} keyboardType="phone-pad" error={Boolean(errors.phone)} left={<TextInput.Icon icon="phone-outline" />} />
+        <FieldMessage message={errors.phone} />
+        <TextInput mode="outlined" label="Ciudad o barrio" value={location} onChangeText={value => { setLocation(value); setErrors(current => ({ ...current, location: undefined })); }} error={Boolean(errors.location)} left={<TextInput.Icon icon="map-marker-outline" />} />
+        <FieldMessage message={errors.location} />
+        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>Solo se muestra una zona aproximada. No ingreses tu dirección exacta.</Text>
+        <Button mode="contained" contentStyle={styles.buttonContent} onPress={update}>Actualizar perfil</Button>
+        {status ? <Surface accessibilityRole="alert" elevation={0} style={[styles.statusCard, { backgroundColor: theme.colors.surfaceVariant }]}><Text variant="bodySmall" style={{ color: theme.colors.onSurface }}>{status}</Text></Surface> : null}
+      </Surface>
 
       <Portal>
-        <Snackbar visible={feedback.length > 0} onDismiss={() => setFeedback('')} duration={2800}>
-          {feedback}
-        </Snackbar>
+        <Dialog visible={photoDialog} onDismiss={() => setPhotoDialog(false)}>
+          <Dialog.Title>Cambiar foto</Dialog.Title>
+          <Dialog.Content style={styles.photoOptions}><Button mode="contained" icon="camera-outline" onPress={() => selectPhoto('camera')}>Tomar con la cámara</Button><Button mode="outlined" icon="image-outline" onPress={() => selectPhoto('library')}>Elegir de la biblioteca</Button></Dialog.Content>
+          <Dialog.Actions><Button onPress={() => setPhotoDialog(false)}>Cancelar</Button></Dialog.Actions>
+        </Dialog>
       </Portal>
     </AppScreen>
   );
 }
 
+function FieldMessage({ message }: { message?: string }) {
+  const theme = useTheme();
+  return message ? <Text accessibilityRole="alert" variant="bodySmall" style={{ color: theme.colors.error }}>{message}</Text> : null;
+}
+
 const styles = StyleSheet.create({
-  content: {
-    paddingBottom: 28,
-    gap: 18,
-  },
-  hero: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    paddingHorizontal: 16,
-  },
-  horizontalPadding: {
-    paddingHorizontal: 16,
-  },
-  heroCopy: {
-    flex: 1,
-    gap: 3,
-  },
-  pageTitle: {
-    fontWeight: '800',
-  },
-  photoButton: {
-    alignSelf: 'flex-start',
-    marginTop: 4,
-  },
-  trustCard: {
-    flexDirection: 'row',
-    borderRadius: 18,
-    marginHorizontal: 16,
-    padding: 16,
-  },
-  trustItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 3,
-  },
-  trustDivider: {
-    width: StyleSheet.hairlineWidth,
-    marginHorizontal: 12,
-  },
-  trustNumber: {
-    textAlign: 'center',
-    fontWeight: '800',
-  },
-  trustLabel: {
-    textAlign: 'center',
-  },
-  sectionCard: {
-    borderWidth: 1,
-    borderRadius: 18,
-    marginHorizontal: 16,
-    padding: 16,
-    gap: 14,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  sectionTitle: {
-    fontWeight: '800',
-  },
-  buttonContent: {
-    minHeight: 48,
-  },
+  content: { paddingBottom: 28, gap: 18 },
+  hero: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 16 },
+  heroCopy: { flex: 1, gap: 3 },
+  pageTitle: { fontWeight: '800' },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  photoButton: { alignSelf: 'flex-start', marginTop: 4 },
+  quickActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16 },
+  trustCard: { flexDirection: 'row', borderRadius: 18, marginHorizontal: 16, padding: 16 },
+  trustItem: { flex: 1, alignItems: 'center', gap: 3 },
+  trustDivider: { width: StyleSheet.hairlineWidth, marginHorizontal: 12 },
+  trustNumber: { color: '#1B1C1C', textAlign: 'center', fontWeight: '800' },
+  trustLabel: { color: '#40493D', textAlign: 'center' },
+  sectionCard: { borderWidth: 1, borderRadius: 18, marginHorizontal: 16, padding: 16, gap: 10 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  sectionTitle: { fontWeight: '800' },
+  buttonContent: { minHeight: 48 },
+  statusCard: { borderRadius: 12, padding: 12 },
+  photoOptions: { gap: 10 },
 });
