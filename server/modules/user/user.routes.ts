@@ -5,7 +5,7 @@ import { loginUser, registerUser } from './user.controllers';
 
 export const AuthRouter: Router = Router();
 
-// estas validaciones mantienen las entradas del auth controladas.
+// valida los datos para registrar un usuario nuevo.
 const registerRules = [
   body('name')
     .trim()
@@ -34,14 +34,14 @@ const registerRules = [
     .withMessage('role is invalid'),
 ];
 
-// estas validaciones protegen el ingreso con email y password.
+// valida los datos de acceso para iniciar sesion.
 const loginRules = [
   body('user').trim().notEmpty().withMessage('user is required'),
   body('password').notEmpty().withMessage('password is required'),
 ];
 
-// esta ruta crea una cuenta nueva.
+// crea una cuenta nueva.
 AuthRouter.post('/register', registerRules, registerUser);
 
-// esta ruta valida credenciales y devuelve un token.
+// valida credenciales y devuelve un token.
 AuthRouter.post('/login', loginRules, loginUser);

@@ -5,17 +5,17 @@ import type { JwtPayload, UserRole } from './user.interfaces';
 const jwtExpiresInSeconds = 60 * 60 * 24 * 7;
 const jwtAlgorithm = 'HS256';
 
-// este helper serializa el valor en base64 url.
+// serializa un valor en base64 url.
 function toBase64Url(value: string | Buffer) {
   return Buffer.from(value).toString('base64url');
 }
 
-// este helper lee la clave solo cuando se necesita firmar o validar.
+// lee la clave solo cuando se necesita firmar o validar.
 function getJwtSecret() {
   return process.env.JWT_SECRET ?? 'dev-secret';
 }
 
-// este helper genera un token jwt firmado con hmac sha256.
+// genera un token jwt firmado con hmac sha256.
 export function signUserToken(payload: { sub: string; email: string; role: UserRole }) {
   const header = { alg: jwtAlgorithm, typ: 'JWT' };
   const issuedAt = Math.floor(Date.now() / 1000);
@@ -35,14 +35,16 @@ export function signUserToken(payload: { sub: string; email: string; role: UserR
   return `${encodedHeader}.${encodedPayload}.${signature}`;
 }
 
-// este helper valida un token y devuelve su payload si sigue vigente.
+// valida un token y devuelve su payload si sigue vigente.
 export function verifyUserToken(token: string) {
   const [encodedHeader, encodedPayload, signature] = token.split('.');
 
+  // corta si el formato no es el esperado.
   if (!encodedHeader || !encodedPayload || !signature) {
     return null;
   }
 
+  // decodifica y valida el encabezado del jwt.
   let header: { alg?: string; typ?: string };
 
   try {
@@ -54,15 +56,18 @@ export function verifyUserToken(token: string) {
     return null;
   }
 
+  // rechaza tokens con algoritmo o tipo distintos.
   if (header.alg !== jwtAlgorithm || header.typ !== 'JWT') {
     return null;
   }
 
+  // compara la firma de forma segura.
   const expectedSignature = crypto
     .createHmac('sha256', getJwtSecret())
     .update(`${encodedHeader}.${encodedPayload}`)
     .digest('base64url');
 
+  // rechaza firmas con longitudes distintas.
   const expectedBuffer = Buffer.from(expectedSignature);
   const signatureBuffer = Buffer.from(signature);
 
@@ -70,10 +75,12 @@ export function verifyUserToken(token: string) {
     return null;
   }
 
+  // rechaza tokens con firma invalida.
   if (!crypto.timingSafeEqual(expectedBuffer, signatureBuffer)) {
     return null;
   }
 
+  // decodifica el payload del token.
   let payload: JwtPayload;
 
   try {
@@ -82,6 +89,7 @@ export function verifyUserToken(token: string) {
     return null;
   }
 
+  // rechaza tokens vencidos.
   if (payload.exp <= Math.floor(Date.now() / 1000)) {
     return null;
   }

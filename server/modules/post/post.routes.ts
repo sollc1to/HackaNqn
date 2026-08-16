@@ -4,8 +4,10 @@ import { body, param, query } from 'express-validator';
 import { createPost, getPostById, listPosts } from './post.controllers';
 import { requireAuth } from '../user/user.middleware';
 
+// router principal de publicaciones.
 export const PostRouter: Router = Router();
 
+// reglas para crear una publicacion.
 const createRules = [
   body('title')
     .trim()
@@ -45,7 +47,9 @@ const listRules = [
   query('q').optional().trim(),
 ];
 
+// lista publicaciones con filtros.
 PostRouter.get('/', listRules, listPosts);
+// obtiene una publicacion por id.
 PostRouter.get('/:id', param('id').isMongoId().withMessage('id is invalid'), getPostById);
+// crea una publicacion protegida con jwt.
 PostRouter.post('/', requireAuth, createRules, createPost);
-

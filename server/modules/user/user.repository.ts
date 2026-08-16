@@ -9,12 +9,12 @@ type CreateUserInput = Omit<RegisterUserDTO, 'birthDate'> & {
 };
 
 export const UserRepository = {
-  // este metodo busca un usuario por email sin exponer la clave.
+  // busca un usuario por email sin exponer la clave.
   async findByEmail(email: string): Promise<UserDocument | null> {
     return await UserModel.findOne({ email });
   },
 
-  // este metodo busca un usuario por email o telefono.
+  // busca un usuario por email o telefono para el login.
   async findByLoginIdentifier(identifier: string): Promise<UserDocument | null> {
     const normalizedIdentifier = identifier.trim().toLowerCase();
 
@@ -23,12 +23,12 @@ export const UserRepository = {
     }).select('+password');
   },
 
-  // este metodo busca un usuario por id.
+  // busca un usuario por id.
   async findById(id: string): Promise<UserDocument | null> {
     return await UserModel.findById(id);
   },
 
-  // este metodo crea un usuario nuevo en la coleccion.
+  // crea un usuario nuevo en la coleccion.
   async createUser(data: CreateUserInput) {
     const newUser = new UserModel(data);
     return await newUser.save();

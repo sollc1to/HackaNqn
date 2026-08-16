@@ -5,6 +5,7 @@ import type { AuthenticatedRequest } from '../user/user.middleware';
 import { PostRepository } from './post.repository';
 import type { CreatePostDTO, ListPostsQuery } from './post.interfaces';
 
+// normaliza etiquetas recibidas como array o texto.
 function normalizeTags(tags?: string[] | string) {
   if (!tags) return [];
   if (Array.isArray(tags)) {
@@ -16,9 +17,10 @@ function normalizeTags(tags?: string[] | string) {
     .filter(Boolean);
 }
 
-// este controlador crea una oferta o solicitud de donacion.
+// crea una oferta o solicitud de donacion.
 export async function createPost(req: AuthenticatedRequest & Request<{}, {}, CreatePostDTO>, res: Response) {
   try {
+    // valida el body antes de crear la publicacion.
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
@@ -28,12 +30,15 @@ export async function createPost(req: AuthenticatedRequest & Request<{}, {}, Cre
       });
     }
 
+    // requiere un usuario autenticado.
     if (!req.auth?.sub) {
       return res.status(401).json({ msg: 'missing token' });
     }
 
+    // toma los datos principales del body.
     const { title, description, kind, locationApprox, tags, status } = req.body;
 
+    // guarda la publicacion con el autor autenticado.
     const createdPost = await PostRepository.createPost({
       title,
       description,
@@ -54,9 +59,10 @@ export async function createPost(req: AuthenticatedRequest & Request<{}, {}, Cre
   }
 }
 
-// este controlador lista publicaciones con filtros simples.
+// lista publicaciones con filtros simples.
 export async function listPosts(req: Request<{}, {}, {}, ListPostsQuery>, res: Response) {
   try {
+    // valida los filtros recibidos.
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
@@ -66,6 +72,7 @@ export async function listPosts(req: Request<{}, {}, {}, ListPostsQuery>, res: R
       });
     }
 
+    // consulta las publicaciones.
     const posts = await PostRepository.listPosts(req.query);
 
     return res.status(200).json({
@@ -78,9 +85,10 @@ export async function listPosts(req: Request<{}, {}, {}, ListPostsQuery>, res: R
   }
 }
 
-// este controlador devuelve una publicacion por id.
+// devuelve una publicacion por id.
 export async function getPostById(req: Request<{ id: string }>, res: Response) {
   try {
+    // valida el parametro id.
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
@@ -90,6 +98,7 @@ export async function getPostById(req: Request<{ id: string }>, res: Response) {
       });
     }
 
+    // busca la publicacion en base al id.
     const post = await PostRepository.findById(req.params.id);
 
     if (!post) {

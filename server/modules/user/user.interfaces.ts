@@ -1,5 +1,7 @@
+// roles disponibles para usuarios de la app.
 export type UserRole = 'normal' | 'organizacion' | 'administrador';
 
+// estructura base del usuario almacenado en mongo.
 export interface User {
   name: string;
   lastName: string;
@@ -32,6 +34,7 @@ export interface LoginDTO {
   password: string;
 }
 
+// salida limpia que se devuelve al cliente.
 export interface SafeUser {
   id: string;
   name: string;
@@ -47,6 +50,7 @@ export interface SafeUser {
   updatedAt?: Date;
 }
 
+// payload interno del jwt de autenticacion.
 export interface JwtPayload {
   sub: string;
   email: string;

@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 import type { User } from './user.interfaces';
 
-// este esquema guarda la informacion base de acceso y perfil.
+// guarda la informacion base de acceso y perfil.
 const userSchema = new mongoose.Schema<User>(
   {
     name: {
@@ -67,19 +67,23 @@ const userSchema = new mongoose.Schema<User>(
   },
 );
 
-// este transform elimina datos sensibles y expone un id amigable.
+// elimina datos sensibles y expone un id amigable.
 userSchema.set('toJSON', {
   transform: (_doc, ret: any) => {
+    // normaliza el id para el frontend.
     ret.id = ret._id;
+    // oculta campos internos de mongoose.
     delete ret._id;
     delete ret.__v;
+    // nunca expone la clave.
     delete ret.password;
+    // serializa la fecha de nacimiento como string.
     ret.birthDate = new Date(ret.birthDate).toISOString();
     return ret;
   },
 });
 
-// este modelo representa la coleccion users.
+// representa la coleccion users.
 const UserModel = mongoose.model('User', userSchema);
 
 export default UserModel;

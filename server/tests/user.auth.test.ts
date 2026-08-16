@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 
 import { signUserToken, verifyUserToken } from '../modules/user/user.auth';
 
+// arma un token valido para casos de prueba.
 function buildToken(payload: Record<string, unknown>, secret = 'dev-secret') {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
   const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -11,6 +12,7 @@ function buildToken(payload: Record<string, unknown>, secret = 'dev-secret') {
   return `${header}.${body}.${signature}`;
 }
 
+// confirma que la firma y la verificacion funcionan juntas.
 test('signUserToken and verifyUserToken round-trip a valid payload', () => {
   process.env.JWT_SECRET = 'test-secret';
 
@@ -31,6 +33,7 @@ test('signUserToken and verifyUserToken round-trip a valid payload', () => {
   assert.ok(payload && payload.exp > payload.iat);
 });
 
+// confirma que un token alterado se rechaza.
 test('verifyUserToken rejects tampered tokens', () => {
   process.env.JWT_SECRET = 'test-secret';
 
@@ -53,6 +56,7 @@ test('verifyUserToken rejects tampered tokens', () => {
   assert.equal(verifyUserToken(tamperedToken), null);
 });
 
+// confirma que un token vencido se rechaza.
 test('verifyUserToken rejects expired tokens', () => {
   process.env.JWT_SECRET = 'test-secret';
 
