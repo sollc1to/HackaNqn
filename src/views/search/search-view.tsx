@@ -1,182 +1,268 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
-import { Avatar, IconButton, Surface, Text, TextInput, TouchableRipple, useTheme } from 'react-native-paper';
+import { Animated, FlatList, ScrollView, StyleSheet, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Button, IconButton, Text, TextInput, useTheme } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { SearchFilterSection } from '@/components';
+import { CategoryChip, PostCard } from '@/components';
+import { type PostCategory, type PostKind } from '@/data/posts';
+import { useAppData } from '@/state/app-data-context';
 
-type CategoryKey = 'food' | 'clothes' | 'health' | 'housing';
-type FoodFilterKey = 'dry' | 'fruit' | 'prepared' | 'gluten-free' | 'water';
+type CategoryFilter = 'all' | PostCategory;
+type KindFilter = 'all' | PostKind;
+type SortKey = 'distance' | 'urgent';
 
-const categories = [
-  { key: 'food' as const, label: 'alimentos' },
-  { key: 'clothes' as const, label: 'ropa' },
-  { key: 'health' as const, label: 'salud' },
-  { key: 'housing' as const, label: 'hogar' },
+const categories: Array<{ key: CategoryFilter; label: string }> = [
+  { key: 'all', label: 'Todas' },
+  { key: 'food', label: 'Alimentos' },
+  { key: 'clothes', label: 'Ropa' },
+  { key: 'health', label: 'Salud' },
+  { key: 'home', label: 'Hogar' },
 ];
 
-const foodFilters = [
-  { key: 'dry' as const, label: 'no perecederos' },
-  { key: 'fruit' as const, label: 'frutas y verduras' },
-  { key: 'prepared' as const, label: 'comidas preparadas' },
-  { key: 'gluten-free' as const, label: 'sin tacc' },
-  { key: 'water' as const, label: 'agua potable' },
+const kinds: Array<{ key: KindFilter; label: string }> = [
+  { key: 'all', label: 'Todo' },
+  { key: 'donation', label: 'Donaciones' },
+  { key: 'request', label: 'Solicitudes' },
 ];
 
-const recentSearches = [
-  { id: 'winter-kids', label: 'ropa de invierno para niños' },
-  { id: 'southern-kitchens', label: 'voluntariado comedores zona sur' },
-  { id: 'blood-donation', label: 'donación de sangre urgencias' },
-];
+function normalize(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
 
 export function SearchView() {
   const router = useRouter();
   const theme = useTheme();
-  // este estado guarda la consulta principal de busqueda.
-  const [query, setQuery] = useState('alimentos en zona sur');
-  // este estado marca la categoria activa del explorador.
-  const [category, setCategory] = useState<CategoryKey>('food');
-  // este estado refina el resultado dentro de alimentos.
-  const [foodFilter, setFoodFilter] = useState<FoodFilterKey>('dry');
+  const { posts } = useAppData();
+  const [query, setQuery] = useState('');
+  const [category, setCategory] = useState<CategoryFilter>('all');
+  const [kind, setKind] = useState<KindFilter>('all');
+  const [sort, setSort] = useState<SortKey>('distance');
+  const fade = useRef(new Animated.Value(1)).current;
 
-  // este titulo cambia segun la categoria para guiar el filtrado.
-  const tagTitle = useMemo(() => {
-    if (category === 'food') {
-      return 'filtros específicos para alimentos';
-    }
+  const results = useMemo(() => {
+    const normalizedQuery = normalize(query.trim());
+    const filtered = posts.filter(post => {
+      if (post.status !== 'active') return false;
+      const searchableText = normalize(
+        `${post.title} ${post.description} ${post.location} ${post.author} ${post.highlights.join(' ')}`,
+      );
+      const matchesText = normalizedQuery.length === 0 || searchableText.includes(normalizedQuery);
+      const matchesCategory = category === 'all' || post.category === category;
+      const matchesKind = kind === 'all' || post.kind === kind;
 
-    if (category === 'clothes') {
-      return 'filtros específicos para ropa';
-    }
+      return matchesText && matchesCategory && matchesKind;
+    });
 
-    if (category === 'health') {
-      return 'filtros específicos para salud';
-    }
+    return [...filtered].sort((first, second) => {
+      if (sort === 'urgent' && first.urgent !== second.urgent) return first.urgent ? -1 : 1;
+      return first.distanceKm - second.distanceKm;
+    });
+  }, [category, kind, posts, query, sort]);
 
-    return 'filtros específicos para hogar';
-  }, [category]);
+  useEffect(() => {
+    fade.setValue(0.35);
+    Animated.timing(fade, { toValue: 1, duration: 180, useNativeDriver: true }).start();
+  }, [category, fade, kind, query, sort]);
 
-  // esta vista replica la pantalla de busqueda por categorias y filtros.
+  const clearFilters = () => {
+    setQuery('');
+    setCategory('all');
+    setKind('all');
+    setSort('distance');
+  };
+
+  const hasActiveFilters = query.trim().length > 0 || category !== 'all' || kind !== 'all' || sort !== 'distance';
+
   return (
-    <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
-      <Surface style={[styles.header, { backgroundColor: theme.colors.background }]} elevation={0}>
-        <TouchableRipple
-          borderless
-          onPress={() => {
-            // este back devuelve a la pantalla anterior sin perder el contexto.
-            router.back();
-          }}
-          style={styles.iconButton}>
-          <Avatar.Icon
-            size={36}
-            icon="arrow-left"
-            color={theme.colors.primaryContainer}
-            style={{ backgroundColor: 'transparent' }}
-          />
-        </TouchableRipple>
+    <SafeAreaView style={[styles.root, { backgroundColor: theme.colors.background }]}>
+      <View style={styles.header}>
+        <IconButton icon="arrow-left" onPress={() => router.back()} style={styles.backButton} />
+        <TextInput
+          mode="outlined"
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Buscar en Neuquén"
+          autoFocus
+          outlineColor={theme.colors.outlineVariant}
+          activeOutlineColor={theme.colors.primary}
+          left={<TextInput.Icon icon="magnify" />}
+          right={query ? <TextInput.Icon icon="close" onPress={() => setQuery('')} /> : undefined}
+          style={styles.searchInput}
+        />
+      </View>
 
-        <View style={styles.searchWrap}>
-          <TextInput
-            mode="outlined"
-            value={query}
-            onChangeText={text => {
-              // este input actualiza la busqueda en vivo.
-              setQuery(text);
-            }}
-            placeholder="buscar ayuda o donaciones..."
-            outlineColor={theme.colors.outlineVariant}
-            activeOutlineColor={theme.colors.primaryContainer}
-            left={<TextInput.Icon icon="magnify" />}
-            right={
-              query.length > 0 ? (
-                <TextInput.Icon
-                  icon="close"
-                  onPress={() => {
-                    // este boton limpia el texto sin tocar el resto del filtro.
-                    setQuery('');
-                  }}
+      <FlatList
+        data={results}
+        keyExtractor={post => post.id}
+        showsVerticalScrollIndicator={false}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.content}
+        ListHeaderComponent={
+          <View style={styles.filters}>
+            <View style={styles.filterGroup}>
+              <Text variant="labelLarge" style={[styles.filterTitle, { color: theme.colors.onSurface }]}>
+                Categoría
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                {categories.map(item => (
+                  <CategoryChip
+                    key={item.key}
+                    label={item.label}
+                    selected={category === item.key}
+                    onPress={() => setCategory(item.key)}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+
+            <View style={styles.filterGroup}>
+              <Text variant="labelLarge" style={[styles.filterTitle, { color: theme.colors.onSurface }]}>
+                Tipo
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                {kinds.map(item => (
+                  <CategoryChip
+                    key={item.key}
+                    label={item.label}
+                    selected={kind === item.key}
+                    onPress={() => setKind(item.key)}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+
+            <View style={styles.filterGroup}>
+              <Text variant="labelLarge" style={[styles.filterTitle, { color: theme.colors.onSurface }]}>
+                Ordenar por
+              </Text>
+              <View style={styles.chipRow}>
+                <CategoryChip
+                  label="Más cercanas"
+                  selected={sort === 'distance'}
+                  onPress={() => setSort('distance')}
                 />
-              ) : undefined
-            }
-          />
-        </View>
+                <CategoryChip
+                  label="Urgentes primero"
+                  selected={sort === 'urgent'}
+                  onPress={() => setSort('urgent')}
+                />
+              </View>
+            </View>
 
-        <TouchableRipple
-          borderless
-          onPress={() => {
-            // este boton reinicia la busqueda visible del header.
-            setQuery('');
-          }}
-          style={styles.iconButton}>
-          <Avatar.Icon
-            size={36}
-            icon="close"
-            color={theme.colors.outlineVariant}
-            style={{ backgroundColor: 'transparent' }}
-          />
-        </TouchableRipple>
-      </Surface>
-
-      <SearchFilterSection
-        categoryTitle="búsqueda por categorías"
-        filterTitle={tagTitle}
-        categories={categories.map(item => ({
-          ...item,
-          selected: item.key === category,
-        }))}
-        onCategoryChange={key => {
-          // este cambio actualiza la categoria principal del buscador.
-          setCategory(key as CategoryKey);
-        }}
-        tags={
-          category === 'food'
-            ? foodFilters.map(item => ({
-                ...item,
-                selected: item.key === foodFilter,
-              }))
-            : undefined
-        }
-        onTagChange={key => {
-          // este cambio afina el filtro secundario de la categoria actual.
-          setFoodFilter(key as FoodFilterKey);
-        }}
-        recentSearches={recentSearches}
-        header={
-          <View style={styles.sectionIntro}>
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-              {query}
-            </Text>
+            <View style={styles.resultHeading}>
+              <View>
+                <Text variant="titleLarge" style={[styles.resultCount, { color: theme.colors.onSurface }]}>
+                  {results.length} {results.length === 1 ? 'resultado' : 'resultados'}
+                </Text>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                  Información aproximada de distancia
+                </Text>
+              </View>
+              {hasActiveFilters ? (
+                <Button mode="text" compact onPress={clearFilters}>
+                  Limpiar filtros
+                </Button>
+              ) : null}
+            </View>
           </View>
         }
+        renderItem={({ item }) => (
+          <Animated.View style={{ opacity: fade }}>
+            <PostCard
+              post={item}
+              onPress={() => router.push({ pathname: '/post/[postId]', params: { postId: item.id } })}
+            />
+          </Animated.View>
+        )}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ListEmptyComponent={
+          <Animated.View style={[styles.emptyState, { opacity: fade }]}>
+            <MaterialCommunityIcons name="magnify-close" size={48} color={theme.colors.onSurfaceVariant} />
+            <Text variant="titleLarge" style={[styles.emptyTitle, { color: theme.colors.onSurface }]}>
+              No encontramos publicaciones
+            </Text>
+            <Text variant="bodyMedium" style={[styles.emptyCopy, { color: theme.colors.onSurfaceVariant }]}>
+              Probá con otra palabra, categoría o tipo de publicación.
+            </Text>
+            <Button mode="outlined" onPress={clearFilters}>
+              Limpiar filtros
+            </Button>
+          </Animated.View>
+        }
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  // esta raiz ocupa toda la pantalla.
   root: {
     flex: 1,
   },
-  // este header concentra back, busqueda y reset.
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 10,
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
-  // este boton conserva una superficie tactil discreta.
-  iconButton: {
-    borderRadius: 999,
+  backButton: {
+    margin: 0,
   },
-  // este bloque central permite que el campo crezca.
-  searchWrap: {
+  searchInput: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
   },
-  // este intro da espacio para mostrar el texto activo.
-  sectionIntro: {
-    paddingTop: 2,
+  content: {
+    paddingHorizontal: 16,
+    paddingBottom: 28,
+  },
+  filters: {
+    gap: 18,
+    paddingTop: 10,
+    paddingBottom: 16,
+  },
+  filterGroup: {
+    gap: 9,
+  },
+  filterTitle: {
+    fontWeight: '800',
+  },
+  chipRow: {
+    flexDirection: 'row',
+    gap: 9,
+    paddingRight: 16,
+  },
+  resultHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    paddingTop: 4,
+  },
+  resultCount: {
+    fontWeight: '800',
+  },
+  separator: {
+    height: 12,
+  },
+  emptyState: {
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 26,
+    paddingVertical: 52,
+  },
+  emptyTitle: {
+    textAlign: 'center',
+    fontWeight: '800',
+  },
+  emptyCopy: {
+    textAlign: 'center',
+    lineHeight: 22,
   },
 });

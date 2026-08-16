@@ -38,17 +38,18 @@ export function AppBottomNav({ items, activeKey, onChange }: AppBottomNavProps) 
           <TouchableRipple
             key={item.key}
             onPress={() => onChange(item.key)}
-            style={[
-              styles.item,
-              selected && { backgroundColor: theme.colors.primaryContainer },
-            ]}
+            style={styles.item}
             borderless>
-            <View style={styles.itemInner}>
+            <View
+              style={[
+                styles.itemInner,
+                selected && { backgroundColor: theme.colors.primaryContainer },
+              ]}>
               <View style={styles.iconWrap}>
                 <MaterialCommunityIcons
                   name={item.icon}
                   size={22}
-                  color={selected ? theme.colors.onPrimary : theme.colors.onSurfaceVariant}
+                  color={selected ? theme.colors.primary : theme.colors.onSurfaceVariant}
                 />
                 {item.badge ? (
                   <Badge style={styles.badge} size={8}>
@@ -61,7 +62,7 @@ export function AppBottomNav({ items, activeKey, onChange }: AppBottomNavProps) 
                 variant="labelSmall"
                 style={[
                   styles.label,
-                  { color: selected ? theme.colors.onPrimary : theme.colors.onSurfaceVariant },
+                  { color: selected ? theme.colors.primary : theme.colors.onSurfaceVariant },
                 ]}>
                 {item.label}
               </Text>
@@ -90,6 +91,10 @@ const styles = StyleSheet.create({
   itemInner: {
     alignItems: 'center',
     gap: 4,
+    minWidth: 74,
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
   },
   // este wrap permite ubicar el badge sobre el icono.
   iconWrap: {

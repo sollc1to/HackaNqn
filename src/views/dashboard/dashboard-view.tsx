@@ -1,313 +1,282 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
-import { Avatar, Badge, IconButton, Surface, Text, TouchableRipple, useTheme } from 'react-native-paper';
+import { Animated, FlatList, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Avatar, Surface, Text, TouchableRipple, useTheme } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBottomNav, CategoryChip, PostCard } from '@/components';
-import { appPosts } from '@/data/posts';
+import { type AppPost } from '@/data/posts';
+import { currentUser } from '@/data/profile';
+import { useAppData } from '@/state/app-data-context';
 
 type FilterKey = 'all' | 'donation' | 'request' | 'urgent';
-type NavKey = 'home' | 'publish' | 'messages';
 
-const filters: Array<{ key: FilterKey; label: string; icon?: string }> = [
-  { key: 'all', label: 'Todos', icon: 'filter-variant' },
+const filters: Array<{ key: FilterKey; label: string }> = [
+  { key: 'all', label: 'Todas' },
   { key: 'donation', label: 'Donaciones' },
-    { key: 'request', label: 'Peticiones' },
-  { key: 'urgent', label: 'Urgente' },
+  { key: 'request', label: 'Solicitudes' },
+  { key: 'urgent', label: 'Urgentes' },
 ];
+
+const navItems = [
+  { key: 'home', label: 'Inicio', icon: 'home-outline' as const },
+  { key: 'publish', label: 'Publicar', icon: 'plus-circle-outline' as const },
+  { key: 'messages', label: 'Mensajes', icon: 'chat-outline' as const, badge: true },
+];
+
+function AnimatedPostCard({ post, index, onPress }: { post: AppPost; index: number; onPress: () => void }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(8)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 220,
+        delay: Math.min(index * 45, 180),
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 220,
+        delay: Math.min(index * 45, 180),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [index, opacity, translateY]);
+
+  return (
+    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
+      <PostCard post={post} onPress={onPress} />
+    </Animated.View>
+  );
+}
 
 export function DashboardView() {
   const router = useRouter();
   const theme = useTheme();
-  // este estado guarda la busqueda que filtra el feed visible.
-  const [query, setQuery] = useState('');
-  // este estado mantiene la categoria activa del tablero.
+  const { posts } = useAppData();
   const [filter, setFilter] = useState<FilterKey>('all');
-  // este estado sincroniza la pestaña resaltada en la barra inferior.
-  const [activeNav, setActiveNav] = useState<NavKey>('home');
+  const [refreshing, setRefreshing] = useState(false);
 
-  // este calculo reduce la lista a lo que coincide con busqueda y categoria.
-  const visiblePosts = appPosts.filter(post => {
-    const matchesFilter = filter === 'all' ? true : post.category === filter;
-    const matchesQuery =
-      query.trim().length === 0 ||
-      post.title.toLowerCase().includes(query.toLowerCase()) ||
-      post.location.toLowerCase().includes(query.toLowerCase());
+  const visiblePosts = useMemo(
+    () =>
+      posts.filter(post => {
+        if (post.status !== 'active') return false;
+        if (filter === 'donation') return post.kind === 'donation';
+        if (filter === 'request') return post.kind === 'request';
+        if (filter === 'urgent') return post.urgent;
+        return true;
+      }),
+    [filter, posts],
+  );
 
-    return matchesFilter && matchesQuery;
-  });
+  const refresh = () => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 650);
+  };
 
-  // esta pantalla organiza descubrimiento, filtros y acceso rapido a publicaciones.
   return (
-    <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
+    <SafeAreaView style={[styles.root, { backgroundColor: theme.colors.background }]}>
       <View style={styles.topBar}>
         <View style={styles.brandWrap}>
-          <TouchableRipple
-            borderless
-            style={styles.brandIconButton}
-            onPress={() => {
-              // este toque refuerza la vuelta al inicio sin cambiar de pantalla.
-              setActiveNav('home');
-            }}>
-            <Avatar.Icon size={36} icon="hand-heart" color={theme.colors.onPrimary} style={{ backgroundColor: theme.colors.primaryContainer }} />
-          </TouchableRipple>
-          <Text variant="titleLarge" style={[styles.brand, { color: theme.colors.primaryContainer }]}>
-            red solidaria
+          <Surface style={[styles.brandIcon, { backgroundColor: theme.colors.primaryContainer }]} elevation={0}>
+            <MaterialCommunityIcons name="hand-heart" size={24} color={theme.colors.primary} />
+          </Surface>
+          <Text variant="titleLarge" style={[styles.brand, { color: theme.colors.onSurface }]}>
+            Nexo Solidario
           </Text>
         </View>
 
-        <View style={styles.profileWrap}>
-          <TouchableRipple
-            borderless
-            onPress={() => {
-              // esta ruta lleva al perfil y datos personales.
-              router.push('./personal-data');
-            }}>
-            <View style={styles.profileButton}>
-              <Avatar.Text size={40} label="MG" style={{ backgroundColor: theme.colors.surfaceVariant }} />
-              <Badge size={8} style={styles.profileBadge} />
-            </View>
-          </TouchableRipple>
-        </View>
+        <TouchableRipple borderless onPress={() => router.push('/personal-data')} style={styles.profileButton}>
+          <Avatar.Image size={42} source={{ uri: currentUser.imageUri }} />
+        </TouchableRipple>
       </View>
 
-      <View style={styles.body}>
-        <View style={styles.searchBlock}>
-          <TouchableRipple
-            onPress={() => {
-              // esta accion abre la pantalla dedicada a buscar y filtrar.
-              router.push('./search');
-            }}
-            style={styles.searchRipple}
-            borderless>
-            <Surface
-              style={[
-                styles.searchSurface,
-                {
-                  borderColor: theme.colors.outlineVariant,
-                  backgroundColor: theme.colors.surface,
-                },
-              ]}
-              elevation={0}>
-              <IconButton icon="magnify" size={20} iconColor={theme.colors.onSurfaceVariant} style={styles.searchIcon} />
-              <Text variant="bodyLarge" style={[styles.searchText, { color: theme.colors.onSurfaceVariant }]}>
-                {query.length > 0 ? query : 'buscar ayuda o donaciones...'}
-              </Text>
-              {query.length > 0 ? (
-                <IconButton
-                  icon="close"
-                  size={18}
-                  iconColor={theme.colors.onSurfaceVariant}
-                  onPress={() => {
-                    // este boton limpia la busqueda local sin salir del dashboard.
-                    setQuery('');
-                  }}
-                  style={styles.searchClear}
+      <FlatList
+        data={visiblePosts}
+        keyExtractor={post => post.id}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.listContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={theme.colors.primary} />}
+        ListHeaderComponent={
+          <View style={styles.headerContent}>
+            <TouchableRipple onPress={() => router.push('/search')} borderless style={styles.searchRipple}>
+              <Surface
+                elevation={0}
+                style={[
+                  styles.searchSurface,
+                  { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant },
+                ]}>
+                <MaterialCommunityIcons name="magnify" size={22} color={theme.colors.onSurfaceVariant} />
+                <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant }}>
+                  Buscar donaciones o necesidades
+                </Text>
+              </Surface>
+            </TouchableRipple>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterRow}>
+              {filters.map(item => (
+                <CategoryChip
+                  key={item.key}
+                  label={item.label}
+                  selected={filter === item.key}
+                  onPress={() => setFilter(item.key)}
                 />
-              ) : null}
+              ))}
+            </ScrollView>
+
+            <Surface
+              elevation={0}
+              style={[styles.summaryCard, { backgroundColor: theme.colors.primaryContainer }]}>
+              <View style={styles.summaryIcon}>
+                <MaterialCommunityIcons name="map-marker-radius-outline" size={24} color={theme.colors.primary} />
+              </View>
+              <View style={styles.summaryCopy}>
+                <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+                  Comunidad activa hoy
+                </Text>
+                <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                  {visiblePosts.length} publicaciones disponibles en Neuquén y alrededores.
+                </Text>
+              </View>
             </Surface>
-          </TouchableRipple>
-        </View>
 
-        <View style={styles.filters}>
-          {filters.map(item => (
-            <CategoryChip
-              key={item.key}
-              label={item.label}
-              selected={filter === item.key}
-              icon={item.icon}
-              onPress={() => {
-                // este chip ajusta el filtro principal del feed.
-                setFilter(item.key);
-              }}
-            />
-          ))}
-        </View>
-
-        <View style={styles.highlightRow}>
-          <View style={styles.highlightCopy}>
-            <Text variant="titleMedium" style={[styles.highlightTitle, { color: theme.colors.onSurface }]}>
-              comunidad activa hoy
+            <View style={styles.listHeading}>
+              <Text variant="titleLarge" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+                Publicaciones recientes
+              </Text>
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                Deslizá hacia abajo para actualizar
+              </Text>
+            </View>
+          </View>
+        }
+        renderItem={({ item, index }) => (
+          <AnimatedPostCard
+            post={item}
+            index={index}
+            onPress={() =>
+              router.push({ pathname: '/post/[postId]', params: { postId: item.id } })
+            }
+          />
+        )}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <MaterialCommunityIcons name="inbox-outline" size={42} color={theme.colors.onSurfaceVariant} />
+            <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
+              No hay publicaciones en este filtro
             </Text>
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-              publicaciones nuevas y urgentes para responder rapido.
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>
+              Probá otra categoría o creá una nueva publicación.
             </Text>
           </View>
-        </View>
-
-        <View style={styles.grid}>
-          {visiblePosts.map(post => (
-            <View key={post.id} style={styles.gridItem}>
-              <PostCard
-                title={post.title}
-                location={post.location}
-                variant={post.variant}
-                description={post.description}
-                onPress={() => {
-                  // cada card abre el detalle de la publicacion elegida.
-                  router.push((`/post/${post.id}` as never));
-                }}
-                emptyMediaIcon={
-                  <Avatar.Icon
-                    size={48}
-                    icon={post.variant === 'urgent' ? 'alert-decagram' : post.variant === 'request' ? 'food' : 'account-group'}
-                    color={theme.colors.primaryContainer}
-                    style={{ backgroundColor: theme.colors.surface }}
-                  />
-                }
-              />
-            </View>
-          ))}
-        </View>
-      </View>
+        }
+      />
 
       <AppBottomNav
-        activeKey={activeNav}
+        items={navItems}
+        activeKey="home"
         onChange={key => {
-          // este manejador mantiene la barra sincronizada con cada ruta.
-          setActiveNav(key as NavKey);
-
-          if (key === 'publish') {
-            // este destino lleva al formulario de alta de publicaciones.
-            router.push('./create-post');
-            return;
-          }
-
-          if (key === 'messages') {
-            // este destino lleva a los mensajes agrupados por publicacion.
-            router.push('./messages-by-post');
-          }
+          if (key === 'publish') router.push('/create-post');
+          if (key === 'messages') router.push('/messages-by-post');
         }}
-        items={[
-          {
-            key: 'home',
-            label: 'inicio',
-            icon: 'home',
-          },
-          {
-            key: 'publish',
-            label: 'publicar',
-            icon: 'plus-circle-outline',
-          },
-          {
-            key: 'messages',
-            label: 'mensajes',
-            badge: true,
-            icon: 'chat-outline',
-          },
-        ]}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  // esta raiz organiza header, contenido y barra inferior.
   root: {
     flex: 1,
   },
-  // este encabezado replica la lectura compacta del dashboard original.
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 12,
+    paddingVertical: 10,
   },
-  // este bloque agrupa icono y marca.
   brandWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
-  // este boton mantiene el icono con una zona de toque clara.
-  brandIconButton: {
-    borderRadius: 999,
+  brandIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  // esta marca da la sensacion de identidad fuerte.
   brand: {
     fontWeight: '800',
   },
-  // este bloque sostiene el avatar del perfil y el indicador.
-  profileWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // este boton acompana el avatar sin recargarlo.
   profileButton: {
+    borderRadius: 999,
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 22,
+  },
+  headerContent: {
+    gap: 18,
+    paddingTop: 4,
+    paddingBottom: 16,
+  },
+  searchRipple: {
+    borderRadius: 16,
+  },
+  searchSurface: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+  },
+  filterRow: {
+    gap: 9,
+    paddingRight: 16,
+  },
+  summaryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 18,
+    padding: 16,
+  },
+  summaryIcon: {
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // este punto marca actividad o notificacion pendiente.
-  profileBadge: {
-    position: 'absolute',
-    right: 2,
-    bottom: 2,
-  },
-  // este bloque central mantiene el contenido desplazable.
-  body: {
+  summaryCopy: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    gap: 16,
+    gap: 3,
   },
-  // esta seccion controla la busqueda.
-  searchBlock: {
-    marginTop: 2,
-  },
-  // este ripple hace que la barra se comporte como acceso directo.
-  searchRipple: {
-    borderRadius: 28,
-  },
-  // esta superficie mantiene la estetica de campo de busqueda.
-  searchSurface: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderRadius: 28,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingRight: 8,
-  },
-  // este icono fija la lectura de busqueda.
-  searchIcon: {
-    margin: 0,
-  },
-  // este texto reemplaza el comportamiento de input por una entrada tactil.
-  searchText: {
-    flex: 1,
-  },
-  // este boton limpia el texto actual sin salir de la pantalla.
-  searchClear: {
-    margin: 0,
-  },
-  // este grupo permite desplazar filtros sin romper la grilla.
-  filters: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  // este bloque agrega una pieza editorial corta como en el diseño.
-  highlightRow: {
+  listHeading: {
+    gap: 3,
     paddingTop: 2,
   },
-  // este copy crea jerarquia antes de la grilla.
-  highlightCopy: {
-    gap: 4,
-  },
-  // este titulo anticipa la actividad del feed.
-  highlightTitle: {
+  sectionTitle: {
     fontWeight: '800',
   },
-  // esta grilla muestra las cards en dos columnas.
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    paddingBottom: 8,
+  separator: {
+    height: 12,
   },
-  // este item define el ancho de cada card.
-  gridItem: {
-    width: '48%',
+  emptyState: {
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 24,
+    paddingVertical: 42,
   },
 });

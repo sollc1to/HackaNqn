@@ -1,74 +1,57 @@
+import { Image } from 'expo-image';
 import { StyleSheet, View } from 'react-native';
-import { Avatar, Chip, Surface, Text, TouchableRipple, useTheme } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Surface, Text, TouchableRipple, useTheme } from 'react-native-paper';
+
+import { type AppPost, postKindLabel } from '@/data/posts';
 
 type MyPostItemProps = {
-  // este titulo resume la publicacion.
-  title: string;
-  // este tipo ayuda a distinguir entre oferta y pedido.
-  postType: 'offer' | 'request';
-  // este estado define el tono visual de la publicacion.
-  status: 'active' | 'completed' | 'inactive';
-  // este resumen agrega contexto rapido al item.
-  subtitle: string;
-  // este detalle pequeño muestra la actividad asociada.
-  meta: string;
-  // este icono reemplaza la miniatura cuando no hay imagen real.
-  icon: string;
-  // esta accion se dispara al tocar la tarjeta.
+  post: AppPost;
   onPress?: () => void;
 };
 
-export function MyPostItem({ title, postType, status, subtitle, meta, icon, onPress }: MyPostItemProps) {
+export function MyPostItem({ post, onPress }: MyPostItemProps) {
   const theme = useTheme();
+  const statusLabel =
+    post.status === 'active' ? 'Activa' : post.status === 'completed' ? 'Completada' : 'Inactiva';
+  const statusColor = post.status === 'active' ? theme.colors.primary : theme.colors.onSurfaceVariant;
 
-  const typeLabel = postType === 'offer' ? 'oferta' : 'pedido';
-  const statusLabel = status === 'active' ? 'activa' : status === 'completed' ? 'completada' : 'inactiva';
-  const statusColor =
-    status === 'active'
-      ? theme.colors.primaryContainer
-      : status === 'completed'
-        ? theme.colors.secondary
-        : theme.colors.onSurfaceVariant;
-
-  // esta tarjeta replica el listado compacto del panel de mis publicaciones.
   return (
     <TouchableRipple onPress={onPress} borderless style={styles.ripple}>
       <Surface
+        elevation={0}
         style={[
           styles.card,
-          {
-            borderColor: theme.colors.outlineVariant,
-            backgroundColor: theme.colors.surface,
-          },
-        ]}
-        elevation={0}>
-        <View style={[styles.thumbnail, { backgroundColor: theme.colors.surfaceVariant }]}>
-          <Avatar.Icon size={48} icon={icon} color={theme.colors.primaryContainer} style={{ backgroundColor: 'transparent' }} />
-        </View>
+          { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant },
+        ]}>
+        <Image source={{ uri: post.imageUri }} style={styles.image} contentFit="cover" transition={160} />
 
         <View style={styles.body}>
           <View style={styles.topRow}>
-            <Chip compact style={styles.typeChip} textStyle={styles.typeText}>
-              {typeLabel}
-            </Chip>
+            <Text variant="labelMedium" style={[styles.kind, { color: theme.colors.onSurfaceVariant }]}>
+              {postKindLabel[post.kind]}
+            </Text>
             <View style={styles.statusWrap}>
               <View style={[styles.dot, { backgroundColor: statusColor }]} />
-              <Text variant="labelSmall" style={[styles.statusText, { color: statusColor }]}>
+              <Text variant="labelSmall" style={[styles.status, { color: statusColor }]}>
                 {statusLabel}
               </Text>
             </View>
           </View>
 
-          <Text variant="titleSmall" style={[styles.title, { color: theme.colors.onSurface }]} numberOfLines={2}>
-            {title}
+          <Text variant="titleSmall" numberOfLines={2} style={[styles.title, { color: theme.colors.onSurface }]}>
+            {post.title}
           </Text>
 
-          <Text variant="bodySmall" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
-            {subtitle}
-          </Text>
+          <View style={styles.metaRow}>
+            <MaterialCommunityIcons name="map-marker-outline" size={14} color={theme.colors.onSurfaceVariant} />
+            <Text variant="bodySmall" numberOfLines={1} style={[styles.metaText, { color: theme.colors.onSurfaceVariant }]}>
+              {post.location}
+            </Text>
+          </View>
 
-          <Text variant="labelSmall" style={[styles.meta, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
-            {meta}
+          <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+            {post.publishedAt}
           </Text>
         </View>
       </Surface>
@@ -77,77 +60,57 @@ export function MyPostItem({ title, postType, status, subtitle, meta, icon, onPr
 }
 
 const styles = StyleSheet.create({
-  // este ripple mantiene un area tactil amable.
   ripple: {
     borderRadius: 16,
   },
-  // esta card usa una composicion horizontal compacta.
   card: {
+    minHeight: 112,
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
+    overflow: 'hidden',
     borderWidth: 1,
     borderRadius: 16,
-    padding: 12,
   },
-  // esta miniatura mantiene una proporción consistente.
-  thumbnail: {
-    width: 80,
-    height: 80,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+  image: {
+    width: 96,
+    backgroundColor: '#EEF5EC',
   },
-  // este bloque central sostiene toda la informacion textual.
   body: {
     flex: 1,
+    padding: 12,
     gap: 6,
   },
-  // esta fila ubica el tipo y el estado.
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 8,
   },
-  // este chip marca el tipo de publicacion.
-  typeChip: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#EAE8E7',
+  kind: {
+    fontWeight: '700',
   },
-  // este texto del chip evita mayusculas visuales innecesarias.
-  typeText: {
-    fontSize: 11,
-    lineHeight: 14,
-    textTransform: 'none',
-  },
-  // este contenedor alinea punto y estado.
   statusWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  // este punto replica el indicador simple del diseño.
   dot: {
-    width: 8,
-    height: 8,
+    width: 7,
+    height: 7,
     borderRadius: 999,
   },
-  // este estado debe leerse rapido.
-  statusText: {
+  status: {
     fontWeight: '700',
-    textTransform: 'none',
   },
-  // este titulo aporta la jerarquia principal.
   title: {
-    fontWeight: '700',
+    fontWeight: '800',
   },
-  // este subtitulo acompana sin invadir.
-  subtitle: {
-    lineHeight: 18,
+  metaRow: {
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
   },
-  // este meta cierra el item con un dato util.
-  meta: {
-    fontWeight: '500',
+  metaText: {
+    flex: 1,
   },
 });

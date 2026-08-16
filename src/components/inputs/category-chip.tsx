@@ -24,13 +24,14 @@ export function CategoryChip({ label, selected = false, icon, onPress }: Categor
       style={[
         styles.chip,
         {
-          backgroundColor: selected ? theme.colors.primaryContainer : theme.colors.surfaceVariant,
+          backgroundColor: selected ? theme.colors.primaryContainer : theme.colors.surface,
+          borderColor: selected ? theme.colors.primary : theme.colors.outlineVariant,
         },
       ]}
       textStyle={[
         styles.text,
         {
-          color: selected ? theme.colors.onPrimary : theme.colors.onSurface,
+          color: selected ? theme.colors.onPrimaryContainer : theme.colors.onSurfaceVariant,
         },
       ]}>
       {label}
@@ -42,6 +43,7 @@ const styles = StyleSheet.create({
   // este chip conserva una forma suave y tactil.
   chip: {
     minHeight: 40,
+    borderWidth: 1,
   },
   // este texto prioriza legibilidad y contraste.
   text: {

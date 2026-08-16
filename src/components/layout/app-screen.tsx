@@ -26,6 +26,8 @@ export function AppScreen({ children, footer, contentStyle, scrollable = true }:
             <ScrollView
               style={styles.scroll}
               contentContainerStyle={[styles.content, contentStyle]}
+              keyboardDismissMode="on-drag"
+              keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}>
               {children}
             </ScrollView>

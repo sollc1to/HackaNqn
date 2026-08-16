@@ -31,7 +31,7 @@ export function SegmentedControl({ options, value, onValueChange }: SegmentedCon
       theme={{
         colors: {
           secondaryContainer: theme.colors.primaryContainer,
-          onSecondaryContainer: theme.colors.onPrimary,
+          onSecondaryContainer: theme.colors.onPrimaryContainer,
         },
       }}
     />
