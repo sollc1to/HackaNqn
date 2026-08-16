@@ -21,8 +21,8 @@ type MyPostItemProps = {
 export function MyPostItem({ title, postType, status, subtitle, meta, icon, onPress }: MyPostItemProps) {
   const theme = useTheme();
 
-  const typeLabel = postType === 'offer' ? 'offer' : 'request';
-  const statusLabel = status === 'active' ? 'active' : status === 'completed' ? 'completed' : 'inactive';
+  const typeLabel = postType === 'offer' ? 'oferta' : 'pedido';
+  const statusLabel = status === 'active' ? 'activa' : status === 'completed' ? 'completada' : 'inactiva';
   const statusColor =
     status === 'active'
       ? theme.colors.primaryContainer

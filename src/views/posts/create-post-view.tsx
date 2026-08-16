@@ -9,10 +9,10 @@ type PostMode = 'offer' | 'request';
 type PostCategory = 'food' | 'clothes' | 'health' | 'housing';
 
 const categories: Array<{ key: PostCategory; label: string }> = [
-  { key: 'food', label: 'food' },
-  { key: 'clothes', label: 'clothes' },
-  { key: 'health', label: 'health' },
-  { key: 'housing', label: 'housing' },
+  { key: 'food', label: 'Alimentos' },
+  { key: 'clothes', label: 'Ropa' },
+  { key: 'health', label: 'Salud' },
+  { key: 'housing', label: 'Hogar' },
 ];
 
 export function CreatePostView() {
@@ -32,8 +32,8 @@ export function CreatePostView() {
   // este set de opciones resume la decision entre ofrecer y pedir ayuda.
   const segmentedOptions = useMemo(
     () => [
-      { value: 'offer', label: "i'm offering help" },
-      { value: 'request', label: 'i need help' },
+      { value: 'offer', label: 'Ofrezco ayuda' },
+      { value: 'request', label: 'Necesito ayuda' },
     ],
     [],
   );
@@ -52,12 +52,12 @@ export function CreatePostView() {
             // este boton cierra el alta y vuelve a la pantalla anterior.
             router.back();
           }}>
-          publish post
+          Publicar
         </Button>
       }
       contentStyle={styles.content}>
       <AppHeader
-        title="new post"
+        title="Nueva publicación"
         onBackPress={() => {
           // este back vuelve sin perder el flujo previo.
           router.back();
@@ -78,8 +78,8 @@ export function CreatePostView() {
       <View style={styles.section}>
         <TextInput
           mode="outlined"
-          label="title of the post"
-          placeholder="e.g., warm blankets for winter"
+          label="Título de la publicación"
+          placeholder="Ej.: mantas de invierno"
           value={title}
           onChangeText={text => {
             // este input actualiza el titulo visible del post.
@@ -92,7 +92,7 @@ export function CreatePostView() {
 
       <View style={styles.section}>
         <Text variant="titleMedium" style={[styles.label, { color: theme.colors.onSurface }]}>
-          category
+          Categoría
         </Text>
         <View style={styles.chipRow}>
           {categories.map(item => (
@@ -112,8 +112,8 @@ export function CreatePostView() {
       <View style={styles.section}>
         <TextInput
           mode="outlined"
-          label="description"
-          placeholder="describe the details of your offer or request..."
+          label="Descripción"
+          placeholder="Describe los detalles de tu oferta o pedido..."
           value={description}
           onChangeText={text => {
             // este input completa el contenido principal del post.
@@ -130,7 +130,7 @@ export function CreatePostView() {
       <View style={styles.section}>
         <TextInput
           mode="outlined"
-          label="location"
+          label="Ubicación"
           value={location}
           onChangeText={text => {
             // este campo define la ubicacion visible del post.
@@ -144,7 +144,7 @@ export function CreatePostView() {
 
       <View style={styles.section}>
         <Text variant="titleMedium" style={[styles.label, { color: theme.colors.onSurface }]}>
-          upload photo
+          Subir foto
         </Text>
         <TouchableRipple onPress={() => undefined} style={styles.uploadRipple}>
           <Surface
@@ -158,7 +158,7 @@ export function CreatePostView() {
             elevation={0}>
             <IconButton icon="camera-plus-outline" size={28} iconColor={theme.colors.onSurfaceVariant} />
             <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-              tap to upload image
+              Toca para subir una imagen
             </Text>
           </Surface>
         </TouchableRipple>

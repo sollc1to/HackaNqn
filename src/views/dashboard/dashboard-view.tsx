@@ -10,10 +10,10 @@ type FilterKey = 'all' | 'donation' | 'request' | 'urgent';
 type NavKey = 'home' | 'publish' | 'messages';
 
 const filters: Array<{ key: FilterKey; label: string; icon?: string }> = [
-  { key: 'all', label: 'todos', icon: 'filter-variant' },
-  { key: 'donation', label: 'donaciones' },
-  { key: 'request', label: 'peticiones' },
-  { key: 'urgent', label: 'urgente' },
+  { key: 'all', label: 'Todos', icon: 'filter-variant' },
+  { key: 'donation', label: 'Donaciones' },
+    { key: 'request', label: 'Peticiones' },
+  { key: 'urgent', label: 'Urgente' },
 ];
 
 export function DashboardView() {

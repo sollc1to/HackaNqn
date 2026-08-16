@@ -27,27 +27,27 @@ type MyPostRecord = {
 const records: MyPostRecord[] = [
   {
     id: 'winter-clothes',
-    title: 'winter clothes for family of 4',
-    subtitle: 'request',
-    meta: 'posted oct 12 • 3 offers',
+    title: 'Ropa de invierno para familia de 4',
+    subtitle: 'pedido',
+    meta: 'publicada el 12 oct • 3 ofertas',
     postType: 'request',
     status: 'active',
     icon: 'tshirt-crew',
   },
   {
     id: 'food-box',
-    title: 'box of non-perishable food',
-    subtitle: 'offer',
-    meta: 'posted sep 28 • claimed',
+    title: 'Caja de alimentos no perecederos',
+    subtitle: 'oferta',
+    meta: 'publicada el 28 sep • entregada',
     postType: 'offer',
     status: 'completed',
     icon: 'food-apple',
   },
   {
     id: 'books-toys',
-    title: "children's books and educational toys",
-    subtitle: 'offer',
-    meta: 'posted today • 0 requests',
+    title: 'Libros infantiles y juguetes educativos',
+    subtitle: 'oferta',
+    meta: 'publicada hoy • 0 pedidos',
     postType: 'offer',
     status: 'active',
     icon: 'bookshelf',
@@ -78,7 +78,7 @@ export function MyPostsView() {
             />
           </TouchableRipple>
           <Text variant="headlineSmall" style={[styles.headerTitle, { color: theme.colors.onSurface }]}>
-            my posts
+            Mis publicaciones
           </Text>
         </View>
 
@@ -101,20 +101,20 @@ export function MyPostsView() {
             }
           }}
           options={[
-            { value: 'my-posts', label: 'my posts' },
-            { value: 'personal-data', label: 'personal data' },
+            { value: 'my-posts', label: 'Mis publicaciones' },
+            { value: 'personal-data', label: 'Datos personales' },
           ]}
         />
 
         <View style={styles.filterRow}>
-          <CategoryChip label="all posts" selected={filter === 'all'} onPress={() => setFilter('all')} />
-          <CategoryChip label="active" selected={filter === 'active'} onPress={() => setFilter('active')} />
+          <CategoryChip label="Todas" selected={filter === 'all'} onPress={() => setFilter('all')} />
+          <CategoryChip label="Activas" selected={filter === 'active'} onPress={() => setFilter('active')} />
           <CategoryChip
-            label="completed"
+            label="Completadas"
             selected={filter === 'completed'}
             onPress={() => setFilter('completed')}
           />
-          <CategoryChip label="inactive" selected={filter === 'inactive'} onPress={() => setFilter('inactive')} />
+          <CategoryChip label="Inactivas" selected={filter === 'inactive'} onPress={() => setFilter('inactive')} />
         </View>
 
         <View style={styles.list}>
@@ -139,7 +139,7 @@ export function MyPostsView() {
           style={styles.button}
           icon="plus"
           onPress={() => router.push('./create-post')}>
-          create new post
+          Crear nueva publicación
         </Button>
       </View>
     </View>

@@ -28,7 +28,7 @@ export function AuthView() {
           red solidaria
         </Text>
         <Text variant="bodyLarge" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
-          conecta comunidades para construir una red de ayuda mas fuerte.
+          Conecta comunidades para construir una red de ayuda más fuerte.
         </Text>
       </View>
 
@@ -40,8 +40,8 @@ export function AuthView() {
             setMode(value as AuthMode);
           }}
           options={[
-            { value: 'signin', label: 'sign in' },
-            { value: 'signup', label: 'sign up' },
+            { value: 'signin', label: 'Iniciar sesión' },
+            { value: 'signup', label: 'Registrarse' },
           ]}
         />
 
@@ -49,8 +49,8 @@ export function AuthView() {
           {mode === 'signup' ? (
               <TextInput
                 mode="outlined"
-                label="full name"
-                placeholder="maria gonzalez"
+                label="Nombre completo"
+                placeholder="Maria Gonzalez"
                 outlineColor={theme.colors.outlineVariant}
               activeOutlineColor={theme.colors.primaryContainer}
               style={styles.input}
@@ -59,8 +59,8 @@ export function AuthView() {
 
           <TextInput
             mode="outlined"
-            label="email address"
-            placeholder="name@example.com"
+            label="Dirección de correo"
+            placeholder="nombre@example.com"
             keyboardType="email-address"
             autoCapitalize="none"
             outlineColor={theme.colors.outlineVariant}
@@ -70,8 +70,8 @@ export function AuthView() {
 
           <TextInput
             mode="outlined"
-            label={mode === 'signup' ? 'create password' : 'password'}
-            placeholder={mode === 'signup' ? 'min. 8 characters' : '••••••••'}
+            label={mode === 'signup' ? 'Crear contraseña' : 'Contraseña'}
+            placeholder={mode === 'signup' ? 'Mínimo 8 caracteres' : '••••••••'}
             secureTextEntry={!showPassword}
             outlineColor={theme.colors.outlineVariant}
             activeOutlineColor={theme.colors.primaryContainer}
@@ -98,16 +98,16 @@ export function AuthView() {
                   }}
                 />
                 <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                  remember me
+                  Recuérdame
                 </Text>
               </View>
               <Button mode="text" compact textColor={theme.colors.primaryContainer}>
-                forgot password?
+                ¿Olvidaste tu contraseña?
               </Button>
             </View>
           ) : (
             <Text variant="bodySmall" style={[styles.terms, { color: theme.colors.onSurfaceVariant }]}>
-              al crear una cuenta aceptas los terminos de servicio y la politica de privacidad.
+              Al crear una cuenta aceptas los Términos de Servicio y la Política de privacidad.
             </Text>
           )}
 
@@ -121,13 +121,13 @@ export function AuthView() {
               // esta ruta reemplaza el auth por el dashboard principal.
               router.replace('./dashboard');
             }}>
-            {mode === 'signin' ? 'sign in' : 'create account'}
+            {mode === 'signin' ? 'Iniciar Sesión' : 'Crear Cuenta'}
           </Button>
 
           <View style={styles.orBlock}>
             <Divider style={styles.divider} />
             <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-              or continue with
+              O continuar con
             </Text>
             <Divider style={styles.divider} />
           </View>
@@ -141,7 +141,7 @@ export function AuthView() {
               // este acceso secundario tambien lleva al tablero principal.
               router.replace('./dashboard');
             }}>
-            provider
+            Google
           </Button>
         </View>
       </Surface>
