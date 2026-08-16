@@ -37,7 +37,7 @@ import {
 } from '@/data/posts';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { type PostDraft, useAppData } from '@/state/app-data-context';
-import { pickImages, type PickImageSource } from '@/utils/pick-image';
+import { getPickImageErrorMessage, pickImages, type PickImageSource } from '@/utils/pick-image';
 import { containsExactAddress, findProhibitedContent, fuzzyIncludes } from '@/utils/text';
 
 const categories: PostCategory[] = ['food', 'clothes', 'health', 'home', 'school', 'furniture', 'volunteering'];
@@ -213,15 +213,7 @@ export function CreatePostView() {
       clearError('images');
       setStatusMessage(`${nextImages.length} ${nextImages.length === 1 ? 'foto agregada' : 'fotos agregadas'} y optimizadas.`);
     } catch (error) {
-      const code = error instanceof Error ? error.message : '';
-      setErrors(current => ({
-        ...current,
-        images: code === 'camera-permission'
-          ? 'Necesitamos permiso de cámara para tomar la foto.'
-          : code === 'library-permission'
-            ? 'Necesitamos permiso para acceder a la biblioteca.'
-            : 'No pudimos abrir el selector de imágenes. Intentá nuevamente.',
-      }));
+      setErrors(current => ({ ...current, images: getPickImageErrorMessage(error) }));
     } finally {
       setSelectingImages(false);
     }

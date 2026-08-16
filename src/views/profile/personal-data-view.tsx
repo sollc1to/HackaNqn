@@ -8,7 +8,7 @@ import { AppHeader, AppScreen, AuthorAvatar, RatingStars } from '@/components';
 import { currentUserId } from '@/data/authors';
 import { useAppData } from '@/state/app-data-context';
 import { formatDate } from '@/utils/date';
-import { pickImages } from '@/utils/pick-image';
+import { getPickImageErrorMessage, pickImages } from '@/utils/pick-image';
 
 type Errors = Partial<Record<'name' | 'email' | 'phone' | 'location', string>>;
 
@@ -44,8 +44,8 @@ export function PersonalDataView() {
       if (!images[0]) return;
       updateProfile({ imageUri: images[0].uri });
       setStatus('Foto de perfil actualizada.');
-    } catch {
-      setStatus('No pudimos cambiar la foto. Revisá los permisos e intentá nuevamente.');
+    } catch (error) {
+      setStatus(getPickImageErrorMessage(error));
     }
   };
 

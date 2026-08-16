@@ -1,4 +1,4 @@
-import * as ImagePicker from 'expo-image-picker';
+import type { ImagePickerAsset } from 'expo-image-picker';
 import { Platform } from 'react-native';
 
 export type PickedImage = {
@@ -10,7 +10,17 @@ export type PickedImage = {
 
 export type PickImageSource = 'camera' | 'library';
 
-async function optimizeAsset(asset: ImagePicker.ImagePickerAsset): Promise<PickedImage> {
+async function loadImagePicker() {
+  try {
+    // Loading lazily prevents an older native build from crashing the whole app
+    // before the user opens the camera or the image library.
+    return await import('expo-image-picker');
+  } catch {
+    throw new Error('image-picker-unavailable');
+  }
+}
+
+async function optimizeAsset(asset: ImagePickerAsset): Promise<PickedImage> {
   if (Platform.OS !== 'web' || typeof document === 'undefined') {
     return { uri: asset.uri, width: asset.width, height: asset.height, fileSize: asset.fileSize };
   }
@@ -37,6 +47,8 @@ async function optimizeAsset(asset: ImagePicker.ImagePickerAsset): Promise<Picke
 }
 
 export async function pickImages(source: PickImageSource, multiple = false): Promise<PickedImage[]> {
+  const ImagePicker = await loadImagePicker();
+
   if (source === 'camera') {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) throw new Error('camera-permission');
@@ -70,4 +82,20 @@ export async function pickImages(source: PickImageSource, multiple = false): Pro
 export async function pickImage(source: PickImageSource = 'library') {
   const images = await pickImages(source, false);
   return images[0]?.uri;
+}
+
+export function getPickImageErrorMessage(error: unknown) {
+  const code = error instanceof Error ? error.message : '';
+  switch (code) {
+    case 'camera-permission':
+      return 'Necesitamos permiso de cámara para tomar la foto.';
+    case 'library-permission':
+      return 'Necesitamos permiso para acceder a la biblioteca.';
+    case 'image-picker-unavailable':
+      return 'Esta instalación debe actualizarse para usar la cámara o la biblioteca.';
+    case 'image-compression':
+      return 'No pudimos procesar la imagen seleccionada.';
+    default:
+      return 'No pudimos abrir el selector de imágenes. Intentá nuevamente.';
+  }
 }

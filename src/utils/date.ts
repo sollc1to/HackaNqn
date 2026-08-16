@@ -1,4 +1,15 @@
-const relativeFormatter = new Intl.RelativeTimeFormat('es-AR', { numeric: 'auto' });
+const relativeFormatter =
+  typeof Intl !== 'undefined' && typeof Intl.RelativeTimeFormat === 'function'
+    ? new Intl.RelativeTimeFormat('es-AR', { numeric: 'auto' })
+    : null;
+
+function formatRelativeDay(dayDiff: number) {
+  if (relativeFormatter) return relativeFormatter.format(dayDiff, 'day');
+  if (dayDiff === -1) return 'ayer';
+  if (dayDiff === 0) return 'hoy';
+  if (dayDiff === 1) return 'mañana';
+  return dayDiff < 0 ? `hace ${Math.abs(dayDiff)} días` : `dentro de ${dayDiff} días`;
+}
 
 function startOfDay(value: Date) {
   return new Date(value.getFullYear(), value.getMonth(), value.getDate());
@@ -10,11 +21,11 @@ export function formatRelativeDate(iso: string, now = new Date()) {
 
   const dayDiff = Math.round((startOfDay(date).getTime() - startOfDay(now).getTime()) / 86_400_000);
   if (dayDiff >= -1 && dayDiff <= 1) {
-    const dayLabel = relativeFormatter.format(dayDiff, 'day');
+    const dayLabel = formatRelativeDay(dayDiff);
     return `${dayLabel.charAt(0).toUpperCase()}${dayLabel.slice(1)}, ${formatTime(iso)}`;
   }
 
-  if (dayDiff > -7) return relativeFormatter.format(dayDiff, 'day');
+  if (dayDiff > -7) return formatRelativeDay(dayDiff);
 
   return new Intl.DateTimeFormat('es-AR', {
     day: 'numeric',

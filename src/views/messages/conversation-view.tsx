@@ -21,7 +21,7 @@ import { getPostImageSource, postStatusLabel, type PostLocation } from '@/data/p
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { useAppData } from '@/state/app-data-context';
 import { formatConversationDay, formatTime, sameCalendarDay } from '@/utils/date';
-import { pickImages } from '@/utils/pick-image';
+import { getPickImageErrorMessage, pickImages } from '@/utils/pick-image';
 
 const statusIcon = { sent: 'check', delivered: 'check-all', read: 'check-all' } as const;
 
@@ -81,8 +81,8 @@ export function ConversationView() {
     try {
       const images = await pickImages(source, false);
       if (images[0]) setPendingAttachment({ type: 'image', uri: images[0].uri });
-    } catch {
-      setFeedback('No pudimos agregar la imagen. Revisá los permisos e intentá nuevamente.');
+    } catch (error) {
+      setFeedback(getPickImageErrorMessage(error));
     }
   };
 
