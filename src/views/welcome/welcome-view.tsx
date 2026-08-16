@@ -4,59 +4,99 @@ import { Avatar, Button, Surface, Text, useTheme } from 'react-native-paper';
 
 import { AppScreen } from '@/components';
 
+const impactSteps = [
+  { icon: 'gift-outline', label: 'Ofrecé' },
+  { icon: 'account-group-outline', label: 'Conectá' },
+  { icon: 'heart-outline', label: 'Ayudá' },
+] as const;
+
 export function WelcomeView() {
   const router = useRouter();
   const theme = useTheme();
 
-  // esta vista presenta la app con una lectura clara y un arranque simple.
+  // Esta portada presenta la identidad del producto y conduce a la autenticación.
   return (
-    <AppScreen
-      scrollable={false}
-      contentStyle={[styles.content, { backgroundColor: theme.colors.background }]}>
-      <View style={styles.hero}>
-        <View style={styles.decorTop} />
-        <View style={styles.decorBottom} />
-
-        <Surface style={styles.heroCard} elevation={1}>
-          <View style={styles.heroArt}>
-            <View style={[styles.artCircle, { backgroundColor: theme.colors.primaryContainer }]} />
-            <View style={[styles.artRing, { borderColor: theme.colors.outlineVariant }]} />
-            <Avatar.Icon
-              size={112}
-              icon="hand-heart"
-              color={theme.colors.onPrimary}
-              style={[styles.heroIcon, { backgroundColor: theme.colors.primaryContainer }]}
-            />
-          </View>
-        </Surface>
+    <AppScreen contentStyle={[styles.content, { backgroundColor: theme.colors.background }]}>
+      <View style={styles.brand}>
+        <Avatar.Icon
+          size={44}
+          icon="hand-heart"
+          color={theme.colors.onPrimary}
+          style={{ backgroundColor: theme.colors.primary }}
+        />
+        <View style={styles.brandCopy}>
+          <Text variant="titleMedium" style={[styles.brandName, { color: theme.colors.onSurface }]}>
+            Nexo Solidario
+          </Text>
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+            Una comunidad que se ayuda
+          </Text>
+        </View>
       </View>
 
+      <Surface
+        style={[styles.heroCard, { backgroundColor: theme.colors.primary }]}
+        elevation={2}>
+        <View style={styles.decorLarge} />
+        <View style={styles.decorSmall} />
+
+        <View style={styles.heroIconWrap}>
+          <Avatar.Icon
+            size={96}
+            icon="hand-heart"
+            color={theme.colors.primary}
+            style={[styles.heroIcon, { backgroundColor: theme.colors.surface }]}
+          />
+        </View>
+
+        <View style={styles.impactRow}>
+          {impactSteps.map(step => (
+            <View key={step.label} style={styles.impactItem}>
+              <Avatar.Icon
+                size={30}
+                icon={step.icon}
+                color={theme.colors.onPrimary}
+                style={styles.impactIcon}
+              />
+              <Text variant="labelMedium" style={styles.impactLabel}>
+                {step.label}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </Surface>
+
       <View style={styles.copy}>
+        <Text variant="labelLarge" style={[styles.eyebrow, { color: theme.colors.primary }]}>
+          SOLIDARIDAD CERCA TUYO
+        </Text>
         <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onSurface }]}>
-          Únete. Ayuda. Prospera.
+          Lo que tenés puede cambiar el día de alguien
         </Text>
         <Text variant="bodyLarge" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
-          Conecta personas que pueden ayudar con quienes lo necesitan, de forma simple, clara y organizada.
+          Publicá lo que necesitás o aquello que podés donar y conectá con personas de tu comunidad.
         </Text>
       </View>
 
       <View style={styles.actions}>
         <Button
           mode="contained"
-          buttonColor={theme.colors.primaryContainer}
-          textColor={theme.colors.onPrimary}
+          icon="account-plus-outline"
           contentStyle={styles.buttonContent}
+          labelStyle={styles.buttonLabel}
           style={styles.button}
-          onPress={() => router.push('./auth')}>
-          Registrarse
+          onPress={() => router.push('/auth')}>
+          Crear una cuenta
         </Button>
         <Button
           mode="outlined"
+          icon="login"
           textColor={theme.colors.onSurface}
           contentStyle={styles.buttonContent}
-          style={styles.button}
-          onPress={() => router.push('./auth')}>
-          Iniciar Sesión
+          labelStyle={styles.buttonLabel}
+          style={[styles.button, { borderColor: theme.colors.outlineVariant }]}
+          onPress={() => router.push('/auth')}>
+          Ya tengo una cuenta
         </Button>
       </View>
     </AppScreen>
@@ -64,109 +104,108 @@ export function WelcomeView() {
 }
 
 const styles = StyleSheet.create({
-  // este contenedor reparte el alto para que el hero quede arriba y las acciones abajo.
   content: {
-    flex: 1,
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 24,
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingTop: 12,
     paddingBottom: 24,
+    gap: 20,
   },
-  // este hero centra la pieza visual principal de la portada.
-  hero: {
+  brand: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 8,
+    gap: 12,
   },
-  // estos circulos dan profundidad sin depender de imagenes externas.
-  decorTop: {
+  brandCopy: {
+    flex: 1,
+  },
+  brandName: {
+    fontWeight: '800',
+  },
+  heroCard: {
+    width: '100%',
+    minHeight: 240,
+    borderRadius: 32,
+    paddingHorizontal: 20,
+    paddingVertical: 22,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+  },
+  decorLarge: {
     position: 'absolute',
-    top: 12,
-    right: 4,
-    width: 92,
-    height: 92,
+    width: 210,
+    height: 210,
     borderRadius: 999,
-    backgroundColor: 'rgba(46, 125, 50, 0.08)',
+    top: -105,
+    right: -72,
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
   },
-  // este segundo volumen sostiene el equilibrio visual inferior.
-  decorBottom: {
+  decorSmall: {
     position: 'absolute',
-    left: 0,
-    bottom: 0,
     width: 120,
     height: 120,
     borderRadius: 999,
-    backgroundColor: 'rgba(127, 142, 127, 0.08)',
+    bottom: -62,
+    left: -24,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
-  // esta tarjeta funciona como superficie de bienvenida.
-  heroCard: {
-    width: '100%',
-    maxWidth: 340,
-    aspectRatio: 1,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-  },
-  // este grupo simula una ilustracion limpia y ligera.
-  heroArt: {
-    width: '100%',
-    height: '100%',
+  heroIconWrap: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // este aro sostiene la sensacion de profundidad.
-  artRing: {
-    position: 'absolute',
-    width: 176,
-    height: 176,
-    borderRadius: 999,
-    borderWidth: 1,
-    opacity: 0.8,
-  },
-  // este circulo base ancla la composicion visual.
-  artCircle: {
-    position: 'absolute',
-    width: 136,
-    height: 136,
-    borderRadius: 999,
-    opacity: 0.12,
-  },
-  // este icono representa la idea central de solidaridad.
   heroIcon: {
-    shadowColor: '#000000',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    borderWidth: 8,
+    borderColor: 'rgba(255, 255, 255, 0.24)',
   },
-  // este bloque recoge la promesa de la pantalla.
+  impactRow: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  impactItem: {
+    minWidth: 72,
+    alignItems: 'center',
+    gap: 4,
+  },
+  impactIcon: {
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+  },
+  impactLabel: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
   copy: {
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     paddingHorizontal: 4,
   },
-  // este titulo mantiene un tono fuerte y directo.
+  eyebrow: {
+    fontWeight: '800',
+    letterSpacing: 1.2,
+  },
   title: {
     textAlign: 'center',
     fontWeight: '800',
-    textTransform: 'none',
+    lineHeight: 36,
   },
-  // este texto explica la propuesta sin sobrecargar la pantalla.
   subtitle: {
     textAlign: 'center',
+    lineHeight: 24,
   },
-  // este bloque de acciones cierra la pantalla con dos rutas claras.
   actions: {
+    marginTop: 'auto',
     gap: 12,
   },
-  // esta altura uniforme mejora el alcance tactil.
   buttonContent: {
-    minHeight: 48,
+    minHeight: 52,
   },
-  // esta anchura permite que ambos botones respiren igual.
+  buttonLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
   button: {
-    borderRadius: 8,
+    borderRadius: 14,
   },
 });
