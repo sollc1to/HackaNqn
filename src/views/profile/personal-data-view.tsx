@@ -99,10 +99,10 @@ export function PersonalDataView() {
       <View style={styles.content}>
         <View style={styles.hero}>
           <Text variant="headlineMedium" style={[styles.pageTitle, { color: theme.colors.onSurface }]}>
-            personal data
+            Datos personales
           </Text>
           <Text variant="bodyLarge" style={[styles.pageSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-            manage your profile information and account security.
+            Administra tu información de perfil y la seguridad de la cuenta.
           </Text>
         </View>
 
@@ -114,31 +114,31 @@ export function PersonalDataView() {
             }
           }}
           options={[
-            { value: 'my-posts', label: 'my posts' },
-            { value: 'personal-data', label: 'personal data' },
+            { value: 'my-posts', label: 'Mis publicaciones' },
+            { value: 'personal-data', label: 'Datos personales' },
           ]}
         />
 
-        <SectionCard title="profile information" icon="account-circle-outline">
+        <SectionCard title="Información de perfil" icon="account-circle-outline">
           <View style={styles.avatarRow}>
             <View style={[styles.avatarWrap, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surfaceVariant }]}>
               <Avatar.Icon size={64} icon="account" color={theme.colors.primaryContainer} style={{ backgroundColor: 'transparent' }} />
             </View>
             <View style={styles.avatarActions}>
               <Button mode="outlined" onPress={() => undefined} style={styles.secondaryButton}>
-                change photo
+                Cambiar foto
               </Button>
               <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                jpg, gif or png. max size of 800k
+                jpg, gif o png. tamaño máximo 800 KB
               </Text>
             </View>
           </View>
 
           <View style={styles.grid}>
-            <LabeledInput label="full name" value="Elena Rodriguez" />
-            <LabeledInput label="email address" value="elena.r@example.com" />
-            <LabeledInput label="phone number" value="+54 11 1234 5678" />
-            <LabeledInput label="location (city/neighborhood)" value="Palermo, Buenos Aires" leftIcon="map-marker-outline" />
+            <LabeledInput label="Nombre completo" value="Elena Rodriguez" />
+            <LabeledInput label="Correo electrónico" value="elena.r@example.com" />
+            <LabeledInput label="Teléfono" value="+54 11 1234 5678" />
+            <LabeledInput label="Ubicación (ciudad / barrio)" value="Palermo, Buenos Aires" leftIcon="map-marker-outline" />
           </View>
 
           <View style={styles.actionRow}>
@@ -149,19 +149,19 @@ export function PersonalDataView() {
               contentStyle={styles.primaryButtonContent}
               style={styles.primaryButton}
               onPress={() => undefined}>
-              update profile
+              Actualizar perfil
             </Button>
           </View>
         </SectionCard>
 
-        <SectionCard title="security" icon="lock-outline">
+        <SectionCard title="Seguridad" icon="lock-outline">
           <View style={styles.grid}>
-            <LabeledInput label="current password" value="••••••••" />
-            <LabeledInput label="new password" value="" placeholder="enter new password" />
+            <LabeledInput label="Contraseña actual" value="••••••••" />
+            <LabeledInput label="Nueva contraseña" value="" placeholder="Ingresa la nueva contraseña" />
           </View>
 
           <Button mode="outlined" onPress={() => undefined} style={styles.secondaryWideButton}>
-            change password
+            Cambiar contraseña
           </Button>
         </SectionCard>
 
@@ -187,10 +187,10 @@ export function PersonalDataView() {
               </View>
               <View>
                 <Text variant="titleSmall" style={[styles.mapLabelTitle, { color: theme.colors.onSurface }]}>
-                  primary area
+                  Zona principal
                 </Text>
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                  palermo community
+                  Comunidad Palermo
                 </Text>
               </View>
             </Surface>

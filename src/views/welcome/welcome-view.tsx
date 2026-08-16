@@ -33,10 +33,10 @@ export function WelcomeView() {
 
       <View style={styles.copy}>
         <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onSurface }]}>
-          unite. help. thrive.
+          Únete. Ayuda. Prospera.
         </Text>
         <Text variant="bodyLarge" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
-          conecta personas que pueden ayudar con quienes lo necesitan, de forma simple, clara y organizada.
+          Conecta personas que pueden ayudar con quienes lo necesitan, de forma simple, clara y organizada.
         </Text>
       </View>
 
@@ -48,7 +48,7 @@ export function WelcomeView() {
           contentStyle={styles.buttonContent}
           style={styles.button}
           onPress={() => router.push('./auth')}>
-          get started
+          Registrarse
         </Button>
         <Button
           mode="outlined"
@@ -56,7 +56,7 @@ export function WelcomeView() {
           contentStyle={styles.buttonContent}
           style={styles.button}
           onPress={() => router.push('./auth')}>
-          sign in
+          Iniciar Sesión
         </Button>
       </View>
     </AppScreen>
