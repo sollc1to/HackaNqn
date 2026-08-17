@@ -537,14 +537,7 @@ useEffect(() => {
   {errors.location ??
     'Tocá un punto del mapa. Solo se publicará una ubicación aproximada.'}
 </Text>
-        <TextInput
-          mode="outlined"
-          label="Referencia aproximada"
-          placeholder="Ej.: Zona del Paseo de la Costa"
-          value={meetingPoint}
-          onChangeText={value => { setMeetingPoint(value.slice(0, 100)); clearError('meetingPoint'); clearError('description'); }}
-          error={Boolean(errors.meetingPoint)}
-        />
+       
         <InlineError message={errors.meetingPoint} />
       </View>
 
