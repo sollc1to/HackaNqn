@@ -2,6 +2,30 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Animated, BackHandler, ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+
+import React from 'react';
+import MapView from 'react-native-maps';
+
+
+export default function App() {
+  return (
+    <View style={styles.container}>
+      <MapView style={styles.map} />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  map: {
+    width: '100%',
+    height: '100%',
+  },
+});
+
+
 import {
   Button,
   Checkbox,
@@ -14,15 +38,6 @@ import {
   useTheme,
 } from 'react-native-paper';
 
-import {
-  AppDatePicker,
-  AppHeader,
-  AppScreen,
-  CategoryChip,
-  LocationPicker,
-  SegmentedControl,
-  SmartImage,
-} from '@/components';
 import { currentUserId } from '@/data/authors';
 import {
   getPostImageSource,
@@ -219,12 +234,29 @@ export function CreatePostView() {
     }
   };
 
+  const selectMapLocation = (event: MapPressEvent) => {
+  const coordinate = event.nativeEvent.coordinate;
+
+  // Redondeamos las coordenadas para no guardar una ubicación demasiado exacta.
+  const latitude = Number(coordinate.latitude.toFixed(3));
+  const longitude = Number(coordinate.longitude.toFixed(3));
+
+  setLocation({
+    latitude,
+    longitude,
+    locality: 'Neuquén capital',
+    label: 'Punto aproximado seleccionado',
+  });
+
+  clearError('location');
+};
+
   const validate = () => {
     const next: FormErrors = {};
-    if (title.trim().length < 5) next.title = 'Escribí un título de al menos 5 caracteres.';
-    if (title.length > 80) next.title = 'El título puede tener hasta 80 caracteres.';
-    if (description.trim().length < 20) next.description = 'Agregá una descripción de al menos 20 caracteres.';
-    if (description.length > 600) next.description = 'La descripción puede tener hasta 600 caracteres.';
+    if (title.trim().length < 5) next.title = 'Escribí un título de al menos 5 carácteres.';
+    if (title.length > 80) next.title = 'El título puede tener hasta 80 carácteres.';
+    if (description.trim().length < 20) next.description = 'Agregá una descripción de al menos 20 carácteres.';
+    if (description.length > 600) next.description = 'La descripción puede tener hasta 600 carácteres.';
     const parsedQuantity = Number(quantity);
     if (!Number.isInteger(parsedQuantity) || parsedQuantity <= 0) next.quantity = 'Ingresá una cantidad numérica mayor que cero.';
     if (quantityUnit.trim().length < 2) next.quantityUnit = 'Indicá la unidad: cajas, bolsas, personas, etc.';
@@ -416,7 +448,46 @@ export function CreatePostView() {
 
       <View style={styles.section}>
         <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Ubicación y encuentro</Text>
-        <LocationPicker value={location} onChange={value => { setLocation(value); clearError('location'); }} error={errors.location} />
+<View
+  style={[
+    styles.mapContainer,
+    {
+      borderColor: errors.location
+        ? theme.colors.error
+        : theme.colors.outlineVariant,
+    },
+  ]}>
+  <MapView
+    style={StyleSheet.absoluteFillObject}
+    initialRegion={{
+      latitude: -38.9516,
+      longitude: -68.0591,
+      latitudeDelta: 0.12,
+      longitudeDelta: 0.12,
+    }}
+    onPress={selectMapLocation}>
+    {location ? (
+      <Marker
+        coordinate={{
+          latitude: location.latitude,
+          longitude: location.longitude,
+        }}
+        title="Ubicación aproximada"
+      />
+    ) : null}
+  </MapView>
+</View>
+
+<Text
+  variant="bodySmall"
+  style={{
+    color: errors.location
+      ? theme.colors.error
+      : theme.colors.onSurfaceVariant,
+  }}>
+  {errors.location ??
+    'Tocá un punto del mapa. Solo se publicará una ubicación aproximada.'}
+</Text>
         <TextInput
           mode="outlined"
           label="Referencia aproximada"
@@ -510,6 +581,13 @@ function TouchableCheck({ checked, onPress }: { checked: boolean; onPress: () =>
 }
 
 const styles = StyleSheet.create({
+
+  mapContainer: {
+  height: 240,
+  borderRadius: 20,
+  borderWidth: 1,
+  overflow: 'hidden',
+},
   content: { paddingBottom: 18, gap: 22 },
   section: { gap: 11, paddingHorizontal: 16 },
   sectionTitle: { fontWeight: '800' },
