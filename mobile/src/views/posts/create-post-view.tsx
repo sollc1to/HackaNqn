@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Animated, BackHandler, ScrollView, StyleSheet, View } from 'react-native';
+import { Animated, BackHandler, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import MapView, { Marker, type MapPressEvent } from 'react-native-maps';
 
@@ -158,14 +158,23 @@ export function CreatePostView() {
 
   const dirty = useMemo(() => draftSignature(currentDraft) !== draftSignature(initialRef.current), [currentDraft]);
 
-  useEffect(() => {
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (!dirty) return false;
-      setLeaveDialog(true);
-      return true;
-    });
-    return () => subscription.remove();
-  }, [dirty]);
+ useEffect(() => {
+  // beforeunload solamente existe en web.
+  if (Platform.OS !== 'web') return;
+
+  const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+    if (!dirty) return;
+
+    event.preventDefault();
+    event.returnValue = '';
+  };
+
+  window.addEventListener('beforeunload', warnBeforeUnload);
+
+  return () => {
+    window.removeEventListener('beforeunload', warnBeforeUnload);
+  };
+}, [dirty]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
