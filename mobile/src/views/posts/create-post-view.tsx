@@ -158,6 +158,23 @@ export function CreatePostView() {
 
   const dirty = useMemo(() => draftSignature(currentDraft) !== draftSignature(initialRef.current), [currentDraft]);
 
+// Android: intercepta el botón físico "Atrás"
+useEffect(() => {
+  const subscription = BackHandler.addEventListener(
+    'hardwareBackPress',
+    () => {
+      if (!dirty) return false;
+
+      setLeaveDialog(true);
+      return true;
+    }
+  );
+
+  return () => subscription.remove();
+}, [dirty]);
+
+
+
  useEffect(() => {
   // beforeunload solamente existe en web.
   if (Platform.OS !== 'web') return;
@@ -176,16 +193,7 @@ export function CreatePostView() {
   };
 }, [dirty]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!dirty) return;
-      event.preventDefault();
-      event.returnValue = '';
-    };
-    window.addEventListener('beforeunload', warnBeforeUnload);
-    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
-  }, [dirty]);
+
 
   useEffect(() => {
     if (!successVisible || reducedMotion) return;
