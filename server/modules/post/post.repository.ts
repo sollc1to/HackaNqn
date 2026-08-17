@@ -34,10 +34,11 @@ export const PostRepository = {
 
   // busca publicaciones aplicando filtros, orden y paginacion.
   async searchPosts(filters: SearchPostsQuery = {}) {
-    const query = buildSearchQuery(filters);
+    // las coordenadas llegan como texto y la formula haversine exige numeros.
+    const lat = filters.lat === undefined ? undefined : Number(filters.lat);
+    const lng = filters.lng === undefined ? undefined : Number(filters.lng);
+    const query = buildSearchQuery({ ...filters, lat, lng });
     const { page, limit, skip } = paginate(filters.page, filters.limit);
-    const lat = filters.lat;
-    const lng = filters.lng;
     const wantsDistance = filters.sort === 'distance' && lat !== undefined && lng !== undefined;
 
     // cuenta el total para los metadatos de paginacion.
