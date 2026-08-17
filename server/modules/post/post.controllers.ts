@@ -36,7 +36,18 @@ export async function createPost(req: AuthenticatedRequest & Request<{}, {}, Cre
     }
 
     // toma los datos principales del body.
-    const { title, description, kind, locationApprox, tags, status } = req.body;
+    const {
+      title,
+      description,
+      kind,
+      locationApprox,
+      tags,
+      status,
+      category,
+      condition,
+      delivery,
+      location,
+    } = req.body;
 
     // guarda la publicacion con el autor autenticado.
     const createdPost = await PostRepository.createPost({
@@ -46,6 +57,10 @@ export async function createPost(req: AuthenticatedRequest & Request<{}, {}, Cre
       locationApprox,
       status,
       tags: normalizeTags(tags),
+      category,
+      condition,
+      delivery,
+      location,
       authorId: req.auth.sub,
     });
 
