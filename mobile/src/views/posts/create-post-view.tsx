@@ -1,8 +1,7 @@
-import { type ComponentProps, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Animated, BackHandler, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Camera, Map, Marker } from '@maplibre/maplibre-react-native';
 
 
 import {
@@ -40,32 +39,6 @@ import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { type PostDraft, useAppData } from '@/state/app-data-context';
 import { getPickImageErrorMessage, pickImages, type PickImageSource } from '@/utils/pick-image';
 import { containsExactAddress, findProhibitedContent, fuzzyIncludes } from '@/utils/text';
-
-
-type MapStyle = Extract<ComponentProps<typeof Map>['mapStyle'], object>;
-
-const openStreetMapStyle: MapStyle = {
-  version: 8,
-  sources: {
-    openstreetmap: {
-      type: 'raster',
-      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      minzoom: 0,
-      maxzoom: 19,
-      attribution: '© OpenStreetMap contributors',
-    },
-  },
-  layers: [
-    {
-      id: 'openstreetmap',
-      type: 'raster',
-      source: 'openstreetmap',
-      minzoom: 0,
-      maxzoom: 19,
-    },
-  ],
-};
 
 const categories: PostCategory[] = ['food', 'clothes', 'health', 'home', 'school', 'furniture', 'volunteering'];
 const conditions: Array<{ key: ArticleCondition; label: string }> = [
@@ -263,23 +236,22 @@ useEffect(() => {
     }
   };
 
-  const selectMapLocation: NonNullable<ComponentProps<typeof Map>['onPress']> = event => {
-    // MapLibre entrega las coordenadas como [longitud, latitud].
-    const [rawLongitude, rawLatitude] = event.nativeEvent.lngLat;
+  const selectMapLocation = (event: MapPressEvent) => {
+  const coordinate = event.nativeEvent.coordinate;
 
-    // Redondeamos para no publicar una ubicación demasiado exacta.
-    const latitude = Number(rawLatitude.toFixed(3));
-    const longitude = Number(rawLongitude.toFixed(3));
+  // Redondeamos las coordenadas para no guardar una ubicación demasiado exacta.
+  const latitude = Number(coordinate.latitude.toFixed(3));
+  const longitude = Number(coordinate.longitude.toFixed(3));
 
-    setLocation({
-      latitude,
-      longitude,
-      locality: 'Neuquén capital',
-      label: 'Punto aproximado seleccionado',
-    });
+  setLocation({
+    latitude,
+    longitude,
+    locality: 'Neuquén capital',
+    label: 'Punto aproximado seleccionado',
+  });
 
-    clearError('location');
-  };
+  clearError('location');
+};
 
   const validate = () => {
     const next: FormErrors = {};
@@ -487,47 +459,25 @@ useEffect(() => {
         : theme.colors.outlineVariant,
     },
   ]}>
-  <Map
+  <MapView
     style={StyleSheet.absoluteFillObject}
-    mapStyle={openStreetMapStyle}
-    onPress={selectMapLocation}
-    attribution
-    logo={false}
-    compass>
-    <Camera
-      initialViewState={{
-        center: [-68.0591, -38.9516],
-        zoom: 12,
-      }}
-      minZoom={3}
-      maxZoom={19}
-    />
-
+    initialRegion={{
+      latitude: -38.9516,
+      longitude: -68.0591,
+      latitudeDelta: 0.12,
+      longitudeDelta: 0.12,
+    }}
+    onPress={selectMapLocation}>
     {location ? (
       <Marker
-        id="selected-location"
-        lngLat={[location.longitude, location.latitude]}
-        anchor="bottom">
-        <View
-          style={[
-            styles.mapMarker,
-            { backgroundColor: theme.colors.primary },
-          ]}>
-          <MaterialCommunityIcons
-            name="map-marker"
-            size={28}
-            color="#FFFFFF"
-          />
-        </View>
-      </Marker>
+        coordinate={{
+          latitude: location.latitude,
+          longitude: location.longitude,
+        }}
+        title="Ubicación aproximada"
+      />
     ) : null}
-  </Map>
-
-  <View pointerEvents="none" style={styles.mapAttribution}>
-    <Text variant="labelSmall" style={styles.mapAttributionText}>
-      © OpenStreetMap contributors
-    </Text>
-  </View>
+  </MapView>
 </View>
 
 <Text
@@ -639,30 +589,7 @@ const styles = StyleSheet.create({
   borderRadius: 20,
   borderWidth: 1,
   overflow: 'hidden',
-  position: 'relative',
 },
-  mapMarker: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  mapAttribution: {
-    position: 'absolute',
-    right: 6,
-    bottom: 4,
-    backgroundColor: 'rgba(255,255,255,0.88)',
-    borderRadius: 4,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-  },
-  mapAttributionText: {
-    color: '#333333',
-    fontSize: 9,
-  },
   content: { paddingBottom: 18, gap: 22 },
   section: { gap: 11, paddingHorizontal: 16 },
   sectionTitle: { fontWeight: '800' },

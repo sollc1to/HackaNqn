@@ -29,7 +29,9 @@
       "output": "static",
       "favicon": "./assets/images/nexo-icon.png"
     },
-   "plugins": [
+
+
+    "plugins": [
   "expo-router",
 
   "@maplibre/maplibre-react-native",
@@ -51,11 +53,12 @@
       "microphonePermission": false
     }
   ]
-]
-    "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
-    },
+],
+
+"experiments": {
+  "typedRoutes": true,
+  "reactCompiler": true
+},
     "extra": {
       "router": {},
       "eas": {
