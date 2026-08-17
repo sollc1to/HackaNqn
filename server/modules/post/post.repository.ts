@@ -1,12 +1,24 @@
 import PostModel from './post.model';
+import { buildSearchQuery, distanceKmExpression, paginate } from './post.search';
 
-import type { CreatePostDTO, ListPostsQuery } from './post.interfaces';
+import type { CreatePostDTO, SearchPostsQuery } from './post.interfaces';
+import type { PostDocument } from './post.types';
 
 // datos necesarios para crear una publicacion nueva.
 type CreatePostInput = CreatePostDTO & {
   authorId: string;
   tags: string[];
 };
+
+// serializa un documento o resultado de agregacion para la api.
+function serializePost(post: PostDocument | (PostDocument & { distanceKm: number })) {
+  if (typeof (post as PostDocument).toJSON === 'function') {
+    return (post as PostDocument).toJSON();
+  }
+
+  const { _id, __v, ...rest } = post as PostDocument & { _id?: unknown; __v?: unknown };
+  return { ...rest, id: _id?.toString() };
+}
 
 export const PostRepository = {
   // crea y guarda una nueva publicacion.
@@ -20,26 +32,36 @@ export const PostRepository = {
     return await PostModel.findById(id);
   },
 
-  // lista publicaciones aplicando filtros simples.
-  async listPosts(filters: ListPostsQuery = {}) {
-    const query: Record<string, unknown> = {};
+  // busca publicaciones aplicando filtros, orden y paginacion.
+  async searchPosts(filters: SearchPostsQuery = {}) {
+    const query = buildSearchQuery(filters);
+    const { page, limit, skip } = paginate(filters.page, filters.limit);
+    const lat = filters.lat;
+    const lng = filters.lng;
+    const wantsDistance = filters.sort === 'distance' && lat !== undefined && lng !== undefined;
 
-    // filtra por tipo de publicacion.
-    if (filters.kind) query.kind = filters.kind;
-    // filtra por estado.
-    if (filters.status) query.status = filters.status;
-    // filtra por etiqueta normalizada.
-    if (filters.tag) query.tags = filters.tag.toLowerCase();
-    // filtra por texto en campos principales.
-    if (filters.q) {
-      query.$or = [
-        { title: { $regex: filters.q, $options: 'i' } },
-        { description: { $regex: filters.q, $options: 'i' } },
-        { locationApprox: { $regex: filters.q, $options: 'i' } },
-      ];
+    // cuenta el total para los metadatos de paginacion.
+    const total = await PostModel.countDocuments(query);
+
+    let raw: PostDocument[] | Array<PostDocument & { distanceKm: number }>;
+
+    if (wantsDistance && lat !== undefined && lng !== undefined) {
+      // ordena por cercania usando la formula haversine.
+      raw = await PostModel.aggregate<PostDocument & { distanceKm: number }>([
+        { $match: query },
+        { $addFields: { distanceKm: distanceKmExpression(lat, lng) } },
+        { $sort: { distanceKm: 1, publishedAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+      ]);
+    } else {
+      // devuelve lo mas nuevo primero.
+      raw = await PostModel.find(query).sort({ publishedAt: -1, createdAt: -1 }).skip(skip).limit(limit);
     }
 
-    // devuelve lo mas nuevo primero.
-    return await PostModel.find(query).sort({ publishedAt: -1, createdAt: -1 });
+    return {
+      posts: raw.map(post => serializePost(post)),
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
   },
 };

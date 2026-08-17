@@ -77,11 +77,3 @@ export interface SearchPostsQuery {
   page?: number;
   limit?: number;
 }
-
-// filtros simples para buscar publicaciones.
-export interface ListPostsQuery {
-  kind?: PostKind;
-  status?: PostStatus;
-  tag?: string;
-  q?: string;
-}
