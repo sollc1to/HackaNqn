@@ -8,6 +8,11 @@ import type { PostDocument } from './post.types';
 type CreatePostInput = CreatePostDTO & {
   authorId: string;
   tags: string[];
+  images: Array<{
+    url: string;
+    publicId: string;
+    alt: string;
+  }>;
 };
 
 // serializa un documento o resultado de agregacion para la api.

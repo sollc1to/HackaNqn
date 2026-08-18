@@ -2,6 +2,29 @@ import mongoose from 'mongoose';
 
 import type { Post } from './post.interfaces';
 
+// subesquema para cada imagen del post.
+const postImageSchema = new mongoose.Schema(
+  {
+    url: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    publicId: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    alt: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 120,
+    },
+  },
+  { _id: false },
+);
+
 // esquema de publicaciones con ofertas y solicitudes.
 const postSchema = new mongoose.Schema<Post>(
   {
@@ -47,6 +70,15 @@ const postSchema = new mongoose.Schema<Post>(
       default: [],
       set: (value: string[]) =>
         value.map(tag => String(tag).trim().toLowerCase()).filter(Boolean).slice(0, 10),
+    },
+    // imagenes del post, minimo una y maximo cinco.
+    images: {
+      type: [postImageSchema],
+      required: true,
+      validate: {
+        validator: (value: unknown[]) => Array.isArray(value) && value.length >= 1 && value.length <= 5,
+        message: 'images must contain between 1 and 5 items',
+      },
     },
     // categoria tematica para filtrar en la busqueda.
     category: {

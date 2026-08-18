@@ -18,6 +18,13 @@ export type DeliveryMethod = 'coordinate' | 'can-deliver';
 // orden posible de los resultados.
 export type PostSort = 'recent' | 'distance';
 
+// imagen almacenada en cloudinary.
+export interface PostImage {
+  url: string;
+  publicId: string;
+  alt: string;
+}
+
 // ubicacion geografica usada para filtrar y ordenar por distancia.
 export interface PostLocation {
   label: string;
@@ -35,6 +42,7 @@ export interface Post {
   locationApprox: string;
   status: PostStatus;
   tags: string[];
+  images: PostImage[];
   authorId: string;
   publishedAt: Date;
   category?: PostCategory;
