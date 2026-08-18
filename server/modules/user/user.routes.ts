@@ -36,7 +36,7 @@ const registerRules = [
 
 // valida los datos de acceso para iniciar sesion.
 const loginRules = [
-  body('user').trim().notEmpty().withMessage('user is required'),
+  body('email').trim().isEmail().withMessage('email is invalid').normalizeEmail(),
   body('password').notEmpty().withMessage('password is required'),
 ];
 
