@@ -48,6 +48,50 @@ const postSchema = new mongoose.Schema<Post>(
       set: (value: string[]) =>
         value.map(tag => String(tag).trim().toLowerCase()).filter(Boolean).slice(0, 10),
     },
+    // categoria tematica para filtrar en la busqueda.
+    category: {
+      type: String,
+      enum: ['food', 'clothes', 'health', 'home', 'school', 'furniture', 'volunteering'],
+    },
+    // condicion del articulo publicado.
+    condition: {
+      type: String,
+      enum: ['new', 'very-good', 'good'],
+    },
+    // forma de entrega acordada.
+    delivery: {
+      type: String,
+      enum: ['coordinate', 'can-deliver'],
+      default: 'coordinate',
+    },
+    // ubicacion geografica para filtrar y ordenar por distancia.
+    location: {
+      label: {
+        type: String,
+        trim: true,
+        maxlength: 120,
+      },
+      locality: {
+        type: String,
+        trim: true,
+        maxlength: 80,
+      },
+      neighborhood: {
+        type: String,
+        trim: true,
+        maxlength: 80,
+      },
+      latitude: {
+        type: Number,
+        min: -90,
+        max: 90,
+      },
+      longitude: {
+        type: Number,
+        min: -180,
+        max: 180,
+      },
+    },
     // id del usuario que creo la publicacion.
     authorId: {
       type: String,

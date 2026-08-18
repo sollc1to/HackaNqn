@@ -3,7 +3,7 @@ import { validationResult } from 'express-validator';
 
 import type { AuthenticatedRequest } from '../user/user.middleware';
 import { PostRepository } from './post.repository';
-import type { CreatePostDTO, ListPostsQuery } from './post.interfaces';
+import type { CreatePostDTO, SearchPostsQuery } from './post.interfaces';
 
 // normaliza etiquetas recibidas como array o texto.
 function normalizeTags(tags?: string[] | string) {
@@ -36,7 +36,18 @@ export async function createPost(req: AuthenticatedRequest & Request<{}, {}, Cre
     }
 
     // toma los datos principales del body.
-    const { title, description, kind, locationApprox, tags, status } = req.body;
+    const {
+      title,
+      description,
+      kind,
+      locationApprox,
+      tags,
+      status,
+      category,
+      condition,
+      delivery,
+      location,
+    } = req.body;
 
     // guarda la publicacion con el autor autenticado.
     const createdPost = await PostRepository.createPost({
@@ -46,6 +57,10 @@ export async function createPost(req: AuthenticatedRequest & Request<{}, {}, Cre
       locationApprox,
       status,
       tags: normalizeTags(tags),
+      category,
+      condition,
+      delivery,
+      location,
       authorId: req.auth.sub,
     });
 
@@ -59,8 +74,8 @@ export async function createPost(req: AuthenticatedRequest & Request<{}, {}, Cre
   }
 }
 
-// lista publicaciones con filtros simples.
-export async function listPosts(req: Request<{}, {}, {}, ListPostsQuery>, res: Response) {
+// busca publicaciones con filtros, orden y paginacion.
+export async function searchPosts(req: Request<{}, {}, {}, SearchPostsQuery>, res: Response) {
   try {
     // valida los filtros recibidos.
     const errors = validationResult(req);
@@ -73,11 +88,12 @@ export async function listPosts(req: Request<{}, {}, {}, ListPostsQuery>, res: R
     }
 
     // consulta las publicaciones.
-    const posts = await PostRepository.listPosts(req.query);
+    const result = await PostRepository.searchPosts(req.query);
 
     return res.status(200).json({
       msg: 'publications retrieved successfully',
-      posts: posts.map(post => post.toJSON()),
+      posts: result.posts,
+      pagination: result.pagination,
     });
   } catch (error) {
     console.error(error);
