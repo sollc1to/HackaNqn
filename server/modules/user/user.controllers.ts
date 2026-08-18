@@ -100,10 +100,10 @@ export async function loginUser(req: Request<{}, {}, LoginDTO>, res: Response) {
       });
     }
 
-    // lee el identificador y la clave.
-    const { user: loginUser, password } = req.body;
-    // busca por email o telefono y trae la clave.
-    const user = await UserRepository.findByLoginIdentifier(loginUser);
+    // lee el correo y la clave.
+    const { email, password } = req.body;
+    // busca al usuario por correo y trae la clave.
+    const user = await UserRepository.findByEmailWithPassword(email);
 
     if (!user || !user.password) {
       return res.status(401).json({ msg: 'invalid credentials' });

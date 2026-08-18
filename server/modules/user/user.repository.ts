@@ -14,6 +14,11 @@ export const UserRepository = {
     return await UserModel.findOne({ email });
   },
 
+  // busca un usuario por email y trae tambien la clave para login.
+  async findByEmailWithPassword(email: string): Promise<UserDocument | null> {
+    return await UserModel.findOne({ email: email.trim().toLowerCase() }).select('+password');
+  },
+
   // busca un usuario por email o telefono para el login.
   async findByLoginIdentifier(identifier: string): Promise<UserDocument | null> {
     const normalizedIdentifier = identifier.trim().toLowerCase();

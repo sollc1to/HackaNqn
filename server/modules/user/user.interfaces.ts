@@ -30,7 +30,7 @@ export interface RegisterUserDTO {
 }
 
 export interface LoginDTO {
-  user: string;
+  email: string;
   password: string;
 }
 

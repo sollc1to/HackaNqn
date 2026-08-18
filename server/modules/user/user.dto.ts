@@ -15,6 +15,6 @@ export interface RegisterUserDTO {
 
 // datos necesarios para iniciar sesion.
 export interface LoginDTO {
-  user: string;
+  email: string;
   password: string;
 }
