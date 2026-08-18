@@ -1,6 +1,7 @@
-import type { Request, Response } from 'express';
+import type { Request, RequestHandler, Response } from 'express';
 import { validationResult } from 'express-validator';
 
+import { deletePostImage, uploadPostImage } from './post.cloudinary';
 import type { AuthenticatedRequest } from '../user/user.middleware';
 import { PostRepository } from './post.repository';
 import type { CreatePostDTO, SearchPostsQuery } from './post.interfaces';
@@ -17,11 +18,35 @@ function normalizeTags(tags?: string[] | string) {
     .filter(Boolean);
 }
 
-// crea una oferta o solicitud de donacion.
-export async function createPost(req: AuthenticatedRequest & Request<{}, {}, CreatePostDTO>, res: Response) {
+// sube una lista de imagenes a cloudinary.
+async function uploadImages(files: Express.Multer.File[], title: string) {
+  const uploadedImages: Array<{ url: string; publicId: string; alt: string }> = [];
+
   try {
+    for (const [index, file] of files.entries()) {
+      const uploaded = await uploadPostImage(file);
+      uploadedImages.push({
+        url: uploaded.url,
+        publicId: uploaded.publicId,
+        alt: file.originalname?.trim() || `${title} ${index + 1}`,
+      });
+    }
+
+    return uploadedImages;
+  } catch (error) {
+    // si algo falla, borra las imagenes ya subidas.
+    await Promise.allSettled(uploadedImages.map(image => deletePostImage(image.publicId)));
+    throw error;
+  }
+}
+
+// crea una oferta o solicitud de donacion.
+export const createPost: RequestHandler = async (req, res) => {
+  try {
+    const request = req as AuthenticatedRequest & Request<{}, {}, CreatePostDTO> & { files?: Express.Multer.File[] };
+
     // valida el body antes de crear la publicacion.
-    const errors = validationResult(req);
+    const errors = validationResult(request);
 
     if (!errors.isEmpty()) {
       return res.status(400).json({
@@ -31,8 +56,14 @@ export async function createPost(req: AuthenticatedRequest & Request<{}, {}, Cre
     }
 
     // requiere un usuario autenticado.
-    if (!req.auth?.sub) {
+    if (!request.auth?.sub) {
       return res.status(401).json({ msg: 'missing token' });
+    }
+
+    // requiere al menos una imagen.
+    const files = Array.isArray(request.files) ? request.files : [];
+    if (files.length < 1) {
+      return res.status(400).json({ msg: 'at least one image is required' });
     }
 
     // toma los datos principales del body.
@@ -47,32 +78,42 @@ export async function createPost(req: AuthenticatedRequest & Request<{}, {}, Cre
       condition,
       delivery,
       location,
-    } = req.body;
+    } = request.body;
 
-    // guarda la publicacion con el autor autenticado.
-    const createdPost = await PostRepository.createPost({
-      title,
-      description,
-      kind,
-      locationApprox,
-      status,
-      tags: normalizeTags(tags),
-      category,
-      condition,
-      delivery,
-      location,
-      authorId: req.auth.sub,
-    });
+    // sube las imagenes antes de guardar la publicacion.
+    const images = await uploadImages(files, title);
 
-    return res.status(201).json({
-      msg: 'publication created successfully',
-      post: createdPost.toJSON(),
-    });
+    try {
+      // guarda la publicacion con el autor autenticado.
+      const createdPost = await PostRepository.createPost({
+        title,
+        description,
+        kind,
+        locationApprox,
+        status,
+        tags: normalizeTags(tags),
+        category,
+        condition,
+        delivery,
+        location,
+        images,
+        authorId: request.auth.sub,
+      });
+
+      return res.status(201).json({
+        msg: 'publication created successfully',
+        post: createdPost.toJSON(),
+      });
+    } catch (error) {
+      // limpia las imagenes si falla la persistencia del post.
+      await Promise.allSettled(images.map(image => deletePostImage(image.publicId)));
+      throw error;
+    }
   } catch (error) {
     console.error(error);
     return res.status(500).json({ msg: 'internal server error' });
   }
-}
+};
 
 // busca publicaciones con filtros, orden y paginacion.
 export async function searchPosts(req: Request<{}, {}, {}, SearchPostsQuery>, res: Response) {

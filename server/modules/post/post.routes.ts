@@ -3,6 +3,7 @@ import { body, param, query } from 'express-validator';
 
 import { createPost, getPostById, searchPosts } from './post.controllers';
 import { requireAuth } from '../user/user.middleware';
+import { handlePostImagesUpload } from './post.upload';
 
 // router principal de publicaciones.
 export const PostRouter: Router = Router();
@@ -151,5 +152,5 @@ const searchRules = [
 PostRouter.get('/', searchRules, searchPosts);
 // obtiene una publicacion por id.
 PostRouter.get('/:id', param('id').isMongoId().withMessage('id is invalid'), getPostById);
-// crea una publicacion protegida con jwt.
-PostRouter.post('/', requireAuth, createRules, createPost);
+// crea una publicacion protegida con jwt y subida de imagenes.
+PostRouter.post('/', requireAuth, handlePostImagesUpload, createRules, createPost);
