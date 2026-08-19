@@ -297,7 +297,7 @@ export function AuthView() {
                     mode="outlined"
                     label={
                       accountType === 'organization'
-                        ? 'Nombre del responsable'
+                        ? 'Nombre representante'
                         : 'Nombre'
                     }
                     placeholder="María"
@@ -318,7 +318,7 @@ export function AuthView() {
                     mode="outlined"
                     label={
                       accountType === 'organization'
-                        ? 'Apellido del responsable'
+                        ? 'Apellido del representante'
                         : 'Apellido'
                     }
                     placeholder="González"

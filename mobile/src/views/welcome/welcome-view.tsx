@@ -6,10 +6,7 @@ import { Button, Surface, Text, useTheme } from 'react-native-paper';
 import { AppScreen } from '@/components';
 
 const highlights = [
-  {
-    icon: 'shield-check-outline' as const,
-    label: 'Más confianza',
-  },
+  
 ];
 
 export function WelcomeView() {
@@ -39,11 +36,7 @@ export function WelcomeView() {
               style={[styles.brand, { color: theme.colors.onSurface }]}>
               Nexo Solidario
             </Text>
-            <Text
-              variant="labelSmall"
-              style={{ color: theme.colors.onSurfaceVariant }}>
-              Comunidad que conecta
-            </Text>
+         
           </View>
         </View>
 
@@ -84,61 +77,6 @@ export function WelcomeView() {
             </View>
           </Surface>
 
-          <Surface
-            elevation={2}
-            style={[
-              styles.floatingCardLeft,
-              { backgroundColor: theme.colors.surface },
-            ]}>
-            <View
-              style={[
-                styles.miniIcon,
-                { backgroundColor: theme.colors.primaryContainer },
-              ]}>
-              <MaterialCommunityIcons
-                name="food-apple-outline"
-                size={19}
-                color={theme.colors.primary}
-              />
-            </View>
-            <View>
-              <Text
-                variant="labelMedium"
-                style={{ color: theme.colors.onSurface, fontWeight: '700' }}>
-                Alimentos
-              </Text>
-              <Text
-                variant="labelSmall"
-                style={{ color: theme.colors.onSurfaceVariant }}>
-                disponibles cerca
-              </Text>
-            </View>
-          </Surface>
-
-          <Surface
-            elevation={2}
-            style={[
-              styles.floatingCardRight,
-              { backgroundColor: theme.colors.surface },
-            ]}>
-            <MaterialCommunityIcons
-              name="check-decagram"
-              size={20}
-              color={theme.colors.primary}
-            />
-            <View>
-              <Text
-                variant="labelMedium"
-                style={{ color: theme.colors.onSurface, fontWeight: '700' }}>
-                Organización
-              </Text>
-              <Text
-                variant="labelSmall"
-                style={{ color: theme.colors.onSurfaceVariant }}>
-                verificada
-              </Text>
-            </View>
-          </Surface>
         </View>
 
         <View style={styles.copy}>
@@ -214,7 +152,7 @@ Ayudar nos conecta.
                 color: theme.colors.onSurface,
                 fontWeight: '800',
               }}>
-              Una red hecha para lo local
+              Una red para la comunidad.
             </Text>
             <Text
               variant="bodySmall"
@@ -222,8 +160,7 @@ Ayudar nos conecta.
                 color: theme.colors.onSurfaceVariant,
                 lineHeight: 19,
               }}>
-              Menos distancia, más contacto directo y publicaciones pensadas
-              para resolver necesidades reales de la comunidad.
+              Publicaciones pensadaspara resolver necesidades reales de la comunidad.
             </Text>
           </View>
         </Surface>
