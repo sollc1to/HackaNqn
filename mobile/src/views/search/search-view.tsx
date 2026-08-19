@@ -8,7 +8,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CategoryChip, LocationPicker, PostCard, SkeletonPostCard } from '@/components';
 import {
-  conditionLabel,
   deliveryLabel,
   postCategoryLabel,
   type AppPost,
@@ -49,7 +48,7 @@ const openStreetMapStyle: MapStyle = {
 };
 
 const categories: Array<'all' | PostCategory> = ['all', 'food', 'clothes', 'health', 'home', 'school', 'furniture', 'volunteering'];
-const conditions: Array<'all' | ArticleCondition> = ['all', 'new', 'very-good', 'good'];
+const conditions: Array<'all' | ArticleCondition> = ['all', 'new', 'good'];
 const deliveries: Array<'all' | DeliveryMethod> = ['all', 'coordinate', 'can-deliver'];
 const statuses: Array<'all' | Exclude<PostStatus, 'paused'>> = ['all', 'available', 'reserved', 'completed'];
 const radii: SearchRadius[] = [2, 5, 10, 20];
@@ -181,12 +180,18 @@ export function SearchView() {
       .filter(({ post, distanceKm }) => {
         const author = authors.find(candidate => candidate.id === post.authorId);
         const searchable = `${post.title} ${post.description} ${post.location.label} ${author?.name ?? ''} ${postCategoryLabel[post.category]}`;
+        const conditionMatches =
+          searchFilters.condition === 'all' ||
+          (searchFilters.condition === 'good'
+            ? post.condition === 'good' || post.condition === 'very-good'
+            : post.condition === searchFilters.condition);
+
         return (
           fuzzyIncludes(searchable, searchFilters.query) &&
           (searchFilters.category === 'all' || post.category === searchFilters.category) &&
           (searchFilters.kind === 'all' || post.kind === searchFilters.kind) &&
           (searchFilters.status === 'all' || post.status === searchFilters.status) &&
-          (searchFilters.condition === 'all' || post.condition === searchFilters.condition) &&
+          conditionMatches &&
           (searchFilters.delivery === 'all' || post.delivery === searchFilters.delivery) &&
           distanceKm <= searchFilters.radiusKm
         );
@@ -299,7 +304,12 @@ export function SearchView() {
                   </FilterGroup>
                   <FilterGroup title="Condición del artículo">
                     {conditions.map(item => (
-                      <CategoryChip key={item} label={item === 'all' ? 'Cualquiera' : conditionLabel[item]} selected={searchFilters.condition === item} onPress={() => updateSearchFilters({ condition: item })} />
+                      <CategoryChip
+                        key={item}
+                        label={item === 'all' ? 'Cualquiera' : item === 'new' ? 'Nuevo' : 'Usado'}
+                        selected={searchFilters.condition === item}
+                        onPress={() => updateSearchFilters({ condition: item })}
+                      />
                     ))}
                   </FilterGroup>
                   <FilterGroup title="Forma de entrega">
