@@ -524,14 +524,46 @@ export function CreatePostView() {
           <Dialog.Actions><Button onPress={() => setPhotoDialog(false)}>Cancelar</Button></Dialog.Actions>
         </Dialog>
 
-        <Dialog visible={leaveDialog} onDismiss={() => setLeaveDialog(false)}>
-          <Dialog.Title>Hay cambios sin guardar</Dialog.Title>
-          <Dialog.Content><Text>Si salís ahora, podrías perder la información de esta publicación.</Text></Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setLeaveDialog(false)}>Seguir editando</Button>
-            {!editingPost ? <Button onPress={() => { saveDraft(); setLeaveDialog(false); router.back(); }}>Guardar borrador</Button> : null}
-            <Button textColor={theme.colors.error} onPress={() => { setLeaveDialog(false); router.back(); }}>Descartar</Button>
-          </Dialog.Actions>
+        <Dialog visible={leaveDialog} onDismiss={() => setLeaveDialog(false)} style={[styles.leaveDialog, { backgroundColor: theme.colors.surface }]}>
+          <Dialog.Content style={styles.leaveDialogContent}>
+            <View style={[styles.leaveDialogIcon, { backgroundColor: theme.colors.primaryContainer }]}>
+              <MaterialCommunityIcons name="content-save-alert-outline" size={30} color={theme.colors.primary} />
+            </View>
+            <View style={styles.leaveDialogCopy}>
+              <Text variant="titleLarge" style={{ color: theme.colors.onSurface, fontWeight: '800' }}>¿Salir sin guardar?</Text>
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, lineHeight: 21 }}>
+                Tenés cambios que todavía no se guardaron. Elegí qué querés hacer antes de salir de esta publicación.
+              </Text>
+            </View>
+            <View style={styles.leaveDialogActions}>
+              {!editingPost ? (
+                <Button
+                  mode="contained"
+                  icon="content-save-outline"
+                  textColor={theme.colors.onPrimary}
+                  contentStyle={styles.leaveDialogButtonContent}
+                  onPress={() => { saveDraft(); setLeaveDialog(false); router.back(); }}>
+                  Guardar borrador y salir
+                </Button>
+              ) : null}
+              <Button
+                mode={editingPost ? 'contained' : 'outlined'}
+                icon="pencil-outline"
+                textColor={editingPost ? theme.colors.onPrimary : theme.colors.primary}
+                contentStyle={styles.leaveDialogButtonContent}
+                onPress={() => setLeaveDialog(false)}>
+                Seguir editando
+              </Button>
+              <Button
+                mode="text"
+                icon="delete-outline"
+                textColor={theme.colors.error}
+                contentStyle={styles.leaveDialogButtonContent}
+                onPress={() => { setLeaveDialog(false); router.back(); }}>
+                Salir sin guardar
+              </Button>
+            </View>
+          </Dialog.Content>
         </Dialog>
 
         <Dialog visible={successVisible} dismissable={false}>
@@ -593,6 +625,12 @@ const styles = StyleSheet.create({
   draftRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 },
   statusCard: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, marginHorizontal: 16, padding: 12 },
   photoOptions: { gap: 12 },
+  leaveDialog: { width: '90%', maxWidth: 440, alignSelf: 'center', borderRadius: 24 },
+  leaveDialogContent: { gap: 16, paddingTop: 22 },
+  leaveDialogIcon: { width: 58, height: 58, borderRadius: 18, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
+  leaveDialogCopy: { gap: 7, alignItems: 'center', paddingHorizontal: 4 },
+  leaveDialogActions: { gap: 8, marginTop: 4 },
+  leaveDialogButtonContent: { minHeight: 48 },
   successContent: { alignItems: 'center', gap: 12, paddingTop: 12 },
   successIcon: { width: 76, height: 76, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   successTitle: { textAlign: 'center', fontWeight: '800' },
