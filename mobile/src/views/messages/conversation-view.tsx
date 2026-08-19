@@ -141,10 +141,6 @@ export function ConversationView() {
                   <Text variant="bodySmall" numberOfLines={1} style={{ color: theme.colors.onSurfaceVariant }}>{postStatusLabel[post.status]} · {post.location.label}</Text>
                 </View>
               </Surface>
-              <Surface elevation={0} style={[styles.demoNotice, { backgroundColor: theme.colors.surfaceVariant }]}>
-                <MaterialCommunityIcons name="robot-outline" size={20} color={theme.colors.onSurfaceVariant} />
-                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, flex: 1 }}>Las respuestas automáticas están identificadas como simuladas. Tus mensajes y estados sí se actualizan en la demo.</Text>
-              </Surface>
             </View>
           }
           renderItem={({ item, index }) => {
@@ -154,8 +150,7 @@ export function ConversationView() {
               <View>
                 {showDay ? <View style={styles.dayRow}><Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>{formatConversationDay(item.createdAt)}</Text></View> : null}
                 <View style={[styles.messageRow, mine ? styles.myMessageRow : styles.theirMessageRow]}>
-                  <View style={[styles.bubble, mine ? { backgroundColor: theme.colors.primary } : { backgroundColor: theme.colors.surface, borderColor: item.simulated ? '#8A5A00' : theme.colors.outlineVariant }]}>
-                    {item.simulated ? <View style={styles.simulatedLabel}><MaterialCommunityIcons name="robot-outline" size={14} color="#8A5A00" /><Text variant="labelSmall" style={{ color: '#8A5A00', fontWeight: '800' }}>Respuesta simulada</Text></View> : null}
+                  <View style={[styles.bubble, mine ? { backgroundColor: theme.colors.primary } : { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
                     {item.attachment?.type === 'image' ? <SmartImage source={{ uri: item.attachment.uri }} style={styles.messageImage} contentFit="cover" accessibilityLabel="Imagen adjunta" /> : null}
                     {item.attachment?.type === 'location' ? <Surface elevation={0} style={[styles.locationAttachment, { backgroundColor: mine ? 'rgba(255,255,255,0.15)' : theme.colors.surfaceVariant }]}><MaterialCommunityIcons name="map-marker-outline" size={22} color={mine ? theme.colors.onPrimary : theme.colors.primary} /><Text variant="bodySmall" style={{ color: mine ? theme.colors.onPrimary : theme.colors.onSurface, flex: 1 }}>{item.attachment.label}</Text></Surface> : null}
                     {item.text ? <Text variant="bodyMedium" style={{ color: mine ? theme.colors.onPrimary : theme.colors.onSurface }}>{item.text}</Text> : null}
@@ -252,13 +247,11 @@ const styles = StyleSheet.create({
   postContext: { flexDirection: 'row', overflow: 'hidden', borderWidth: 1, borderRadius: 16 },
   postImage: { width: 76, minHeight: 82, backgroundColor: '#EEF5EC' },
   postCopy: { flex: 1, justifyContent: 'center', gap: 3, padding: 10 },
-  demoNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 14, padding: 12 },
   dayRow: { alignItems: 'center', paddingVertical: 12 },
   messageRow: { flexDirection: 'row' },
   myMessageRow: { justifyContent: 'flex-end' },
   theirMessageRow: { justifyContent: 'flex-start' },
   bubble: { maxWidth: '84%', gap: 6, borderWidth: 1, borderColor: 'transparent', borderRadius: 18, paddingHorizontal: 13, paddingVertical: 10 },
-  simulatedLabel: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   messageImage: { width: 220, maxWidth: '100%', aspectRatio: 4 / 3, borderRadius: 12 },
   locationAttachment: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 10, padding: 9 },
   messageMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
