@@ -9,51 +9,60 @@ const safetySections = [
   {
     icon: 'account-check-outline',
     title: 'Identidad y verificación',
-    body: 'Una insignia indica una revisión de identidad y, para organizaciones, documentación básica. En esta demostración el proceso es simulado y las organizaciones ficticias se identifican expresamente; no implica garantía sobre cada intercambio.',
+    body: 'La insignia de verificación identifica cuentas cuya información fue revisada por la plataforma. La verificación ayuda a generar confianza, pero cada persona debe mantener sus datos actualizados y actuar de buena fe en cada intercambio.',
   },
   {
     icon: 'shield-search-outline',
     title: 'Moderación y reportes',
-    body: 'Cada reporte exige un motivo, se guarda con fecha y queda en estado “recibido”. Un backend de producción deberá enviarlo a una cola de moderación, preservar evidencia, comunicar la resolución y permitir apelaciones.',
+    body: 'Las publicaciones, perfiles y conversaciones pueden ser reportados cuando incumplen las normas. El equipo de moderación puede revisar el contenido, solicitar información adicional, limitar funciones, retirar publicaciones o suspender cuentas según la gravedad y reiteración de la conducta.',
   },
   {
     icon: 'map-marker-alert-outline',
     title: 'Encuentros presenciales',
-    body: 'Coordiná en lugares públicos y con luz. Avisale a alguien de confianza. No publiques tu domicilio exacto; compartí el punto final por mensaje solo cuando sea indispensable.',
+    body: 'Coordiná las entregas en lugares seguros y, cuando sea posible, públicos y concurridos. No publiques tu domicilio exacto. Compartí datos precisos de encuentro únicamente por mensaje y solo cuando sean necesarios para concretar la entrega.',
   },
   {
     icon: 'cash-remove',
-    title: 'Estafas y reventa',
-    body: 'Nexo Solidario no exige pagos para recibir una donación. No transfieras dinero, no compartas códigos de verificación y reportá solicitudes de pago, reventa o información que no coincida con la publicación.',
+    title: 'Donaciones sin pagos',
+    body: 'Las donaciones publicadas en la plataforma deben entregarse de manera gratuita. No transfieras dinero para reservar o recibir una donación. Reportá cualquier solicitud de pago, intento de estafa, reventa engañosa o condición económica no informada.',
   },
   {
     icon: 'cancel',
-    title: 'Productos prohibidos o regulados',
-    body: 'No se permiten medicamentos abiertos, alimentos vencidos, sangre, armas, municiones, explosivos, sustancias peligrosas ni productos cuya entrega incumpla normas sanitarias o legales.',
+    title: 'Productos prohibidos o inseguros',
+    body: 'No se permiten medicamentos abiertos o de entrega restringida, alimentos vencidos, sangre, armas, municiones, explosivos, sustancias peligrosas ni objetos cuya entrega sea ilegal o pueda poner en riesgo a otra persona.',
+  },
+  {
+    icon: 'package-variant-closed-check',
+    title: 'Estado de los objetos',
+    body: 'Los objetos ofrecidos deben estar en buen estado, ser seguros y aptos para el uso indicado. Si son usados, la publicación debe informar con claridad marcas, desgaste, reparaciones, piezas faltantes o cualquier detalle relevante. Las fotografías deben ser actuales y representar el estado real del objeto.',
   },
   {
     icon: 'account-cancel-outline',
-    title: 'Bloqueo y convivencia',
-    body: 'Podés bloquear un contacto desde la conversación. No se toleran amenazas, discriminación, acoso, suplantación de identidad ni presión para compartir datos personales.',
+    title: 'Convivencia y comportamiento',
+    body: 'No se toleran amenazas, discriminación, acoso, suplantación de identidad, contenido engañoso ni presión para obtener datos personales. Podés bloquear contactos y reportar comportamientos que vulneren estas reglas.',
   },
 ];
 
 const policySections = [
   {
     title: 'Términos de uso',
-    body: 'Las personas son responsables de describir los artículos con veracidad, mantener el estado actualizado y coordinar de forma respetuosa. La plataforma puede pausar o retirar contenido que incumpla estas reglas.',
+    body: 'Cada persona es responsable de publicar información verdadera, mantener actualizado el estado de sus publicaciones y utilizar la plataforma de forma respetuosa. La plataforma puede moderar, pausar o retirar contenido y restringir cuentas que incumplan estas condiciones.',
   },
   {
     title: 'Privacidad',
-    body: 'La interfaz solicita una ubicación aproximada y evita mostrar domicilios exactos. Los datos personales solo deben usarse para coordinar el intercambio. Una versión productiva necesitará consentimiento, plazos de conservación y mecanismos de acceso o eliminación de datos.',
+    body: 'La plataforma utiliza ubicaciones aproximadas para facilitar encuentros sin exponer domicilios exactos. Los datos personales obtenidos durante un intercambio deben utilizarse exclusivamente para coordinarlo y no pueden publicarse, compartirse ni reutilizarse sin autorización.',
   },
   {
     title: 'Política de donaciones',
-    body: 'Las donaciones deben ser gratuitas, seguras, legales y coincidir con su descripción. No se permite condicionar la entrega a pagos, favores, publicidad engañosa o reventa previamente acordada.',
+    body: 'Toda donación debe ser gratuita, segura, legal y coincidir con la descripción y fotografías publicadas. No se permite condicionar la entrega a pagos, favores, publicidad engañosa, reventa acordada previamente ni contraprestaciones ocultas.',
+  },
+  {
+    title: 'Contenido y estado de los artículos',
+    body: 'Los artículos deben encontrarse en condiciones adecuadas de uso. El estado declarado, las fotografías y los detalles informados deben reflejar el objeto real. Ocultar roturas, fallas relevantes o condiciones que puedan afectar la seguridad constituye un incumplimiento de las normas.',
   },
   {
     title: 'Reseñas',
-    body: 'Las reseñas deben describir un intercambio real, sin datos sensibles ni ataques personales. Se pueden reportar y moderar. El puntaje no reemplaza las medidas de seguridad.',
+    body: 'Las reseñas deben corresponder a intercambios reales y describir la experiencia de forma respetuosa. No deben incluir datos sensibles, amenazas ni ataques personales. Las reseñas pueden ser reportadas y moderadas cuando incumplen estas reglas.',
   },
 ];
 
@@ -68,17 +77,34 @@ export function SafetyView() {
     <AppScreen contentStyle={styles.content}>
       <AppHeader title={policyMode ? 'Términos y políticas' : 'Confianza y seguridad'} onBackPress={() => router.back()} />
       <View style={styles.intro}>
-        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface, fontWeight: '800' }}>{policyMode ? 'Reglas claras para la comunidad' : 'Cuidarnos también es parte del intercambio'}</Text>
-        <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant, lineHeight: 24 }}>{policyMode ? 'Resumen funcional para el MVP. Antes de producción debe revisarlo un equipo legal local.' : 'Estas señales reducen riesgos, pero no reemplazan el criterio personal ni un proceso de moderación real.'}</Text>
+        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface, fontWeight: '800' }}>
+          {policyMode ? 'Reglas claras para la comunidad' : 'Cuidarnos también es parte del intercambio'}
+        </Text>
+        <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant, lineHeight: 24 }}>
+          {policyMode
+            ? 'Estas reglas establecen las condiciones para publicar, donar, solicitar y coordinar intercambios dentro de la plataforma.'
+            : 'Usá la plataforma de manera responsable y reportá cualquier publicación o comportamiento que pueda poner en riesgo a otra persona.'}
+        </Text>
       </View>
+
       <Surface elevation={0} style={[styles.notice, { backgroundColor: theme.colors.primaryContainer }]}>
-        <MaterialCommunityIcons name="information-outline" size={24} color={theme.colors.primary} />
-        <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, flex: 1 }}>Nexo Solidario es una demostración. Las organizaciones y respuestas automáticas se identifican como ficticias o simuladas.</Text>
+        <MaterialCommunityIcons name="shield-check-outline" size={24} color={theme.colors.primary} />
+        <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, flex: 1 }}>
+          Al publicar o coordinar un intercambio aceptás estas normas. Su incumplimiento puede provocar el retiro del contenido o restricciones sobre la cuenta.
+        </Text>
       </Surface>
+
       <View style={styles.list}>
         {sections.map((section, index) => (
           <Surface key={section.title} elevation={0} style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
-            <View style={styles.cardHeader}>{'icon' in section ? <MaterialCommunityIcons name={section.icon as never} size={23} color={theme.colors.primary} /> : <Text variant="titleLarge" style={{ color: theme.colors.primary, fontWeight: '800' }}>{index + 1}</Text>}<Text variant="titleMedium" style={{ color: theme.colors.onSurface, fontWeight: '800', flex: 1 }}>{section.title}</Text></View>
+            <View style={styles.cardHeader}>
+              {'icon' in section ? (
+                <MaterialCommunityIcons name={section.icon as never} size={23} color={theme.colors.primary} />
+              ) : (
+                <Text variant="titleLarge" style={{ color: theme.colors.primary, fontWeight: '800' }}>{index + 1}</Text>
+              )}
+              <Text variant="titleMedium" style={{ color: theme.colors.onSurface, fontWeight: '800', flex: 1 }}>{section.title}</Text>
+            </View>
             <Divider />
             <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, lineHeight: 22 }}>{section.body}</Text>
           </Surface>
@@ -88,4 +114,11 @@ export function SafetyView() {
   );
 }
 
-const styles = StyleSheet.create({ content: { gap: 18, paddingBottom: 30 }, intro: { gap: 7, paddingHorizontal: 16 }, notice: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 18, marginHorizontal: 16, padding: 16 }, list: { gap: 12, paddingHorizontal: 16 }, card: { borderWidth: 1, borderRadius: 18, padding: 16, gap: 13 }, cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 } });
+const styles = StyleSheet.create({
+  content: { gap: 18, paddingBottom: 30 },
+  intro: { gap: 7, paddingHorizontal: 16 },
+  notice: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 18, marginHorizontal: 16, padding: 16 },
+  list: { gap: 12, paddingHorizontal: 16 },
+  card: { borderWidth: 1, borderRadius: 18, padding: 16, gap: 13 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+});

@@ -332,13 +332,18 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           setThreads(current =>
             current.map(thread => {
               if (thread.id !== threadId || thread.blocked) return thread;
+              const replyOptions = [
+                '¡Hola! Sí, podemos coordinar por acá. ¿Qué día y horario te queda cómodo?',
+                'Perfecto, gracias por escribir. Decime cuándo podrías acercarte y coordinamos.',
+                '¡Buenísimo! Sigue disponible. Podemos acordar el punto de encuentro por acá.',
+              ];
+              const replyText = replyOptions[thread.messages.length % replyOptions.length];
               const reply: ChatMessage = {
-                id: `demo-reply-${Date.now()}`,
+                id: `reply-${Date.now()}`,
                 sender: 'them',
-                text: 'Respuesta automática de demostración: recibimos tu mensaje y coordinamos por acá.',
+                text: replyText,
                 createdAt: new Date().toISOString(),
                 status: 'read',
-                simulated: true,
               };
               return {
                 ...thread,

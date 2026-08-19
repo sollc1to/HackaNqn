@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { type ComponentProps, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Animated, FlatList, ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Camera, Map, Marker } from '@maplibre/maplibre-react-native';
 import { Button, Dialog, IconButton, List, Portal, Surface, Text, TextInput, TouchableRipple, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CategoryChip, LocationPicker, PostCard, SkeletonPostCard } from '@/components';
 import {
-  conditionLabel,
   deliveryLabel,
   postCategoryLabel,
   type AppPost,
@@ -22,12 +22,37 @@ import { type SearchRadius, useAppData } from '@/state/app-data-context';
 import { calculateDistanceKm } from '@/utils/location';
 import { fuzzyIncludes } from '@/utils/text';
 
+type MapStyle = Extract<ComponentProps<typeof Map>['mapStyle'], object>;
+
+const openStreetMapStyle: MapStyle = {
+  version: 8,
+  sources: {
+    openstreetmap: {
+      type: 'raster',
+      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      minzoom: 0,
+      maxzoom: 19,
+      attribution: '© OpenStreetMap contributors',
+    },
+  },
+  layers: [
+    {
+      id: 'openstreetmap',
+      type: 'raster',
+      source: 'openstreetmap',
+      minzoom: 0,
+      maxzoom: 19,
+    },
+  ],
+};
+
 const categories: Array<'all' | PostCategory> = ['all', 'food', 'clothes', 'health', 'home', 'school', 'furniture', 'volunteering'];
-const localities: Array<'all' | AppPost['location']['locality']> = ['all', 'Neuquén capital', 'Plottier', 'Centenario', 'Cutral Co'];
-const conditions: Array<'all' | ArticleCondition> = ['all', 'new', 'very-good', 'good'];
+const conditions: Array<'all' | ArticleCondition> = ['all', 'new', 'good'];
 const deliveries: Array<'all' | DeliveryMethod> = ['all', 'coordinate', 'can-deliver'];
 const statuses: Array<'all' | Exclude<PostStatus, 'paused'>> = ['all', 'available', 'reserved', 'completed'];
 const radii: SearchRadius[] = [2, 5, 10, 20];
+const zoomByRadius: Record<SearchRadius, number> = { 2: 13, 5: 12, 10: 11, 20: 10 };
 
 const statusLabels: Record<(typeof statuses)[number], string> = {
   all: 'Cualquier estado',
@@ -37,34 +62,91 @@ const statusLabels: Record<(typeof statuses)[number], string> = {
 };
 
 type ResultPost = { post: AppPost; distanceKm: number };
+type SearchCenter = { label: string; latitude: number; longitude: number };
 
-function ResultsMap({ results, onSelect }: { results: ResultPost[]; onSelect: (post: AppPost) => void }) {
+function ResultsMap({
+  results,
+  center,
+  radiusKm,
+  onSelect,
+}: {
+  results: ResultPost[];
+  center: SearchCenter;
+  radiusKm: SearchRadius;
+  onSelect: (post: AppPost) => void;
+}) {
   const theme = useTheme();
-  const bounds = { north: -38.76, south: -39.08, west: -69.34, east: -67.95 };
+  const mapKey = `${center.latitude}-${center.longitude}-${radiusKm}`;
+
   return (
     <Surface
       elevation={0}
-      accessibilityLabel={`Mapa con ${results.length} resultados aproximados`}
+      accessibilityLabel={`Mapa real con ${results.length} resultados aproximados en un radio de ${radiusKm} kilómetros`}
       style={[styles.resultsMap, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }]}>
-      <View style={[styles.mapRiver, { backgroundColor: '#B8D9E8' }]} />
-      {results.map(({ post }, index) => {
-        const left = `${((post.location.longitude - bounds.west) / (bounds.east - bounds.west)) * 100}%`;
-        const top = `${((bounds.north - post.location.latitude) / (bounds.north - bounds.south)) * 100}%`;
-        return (
-          <TouchableRipple
+      <Map
+        key={mapKey}
+        style={StyleSheet.absoluteFillObject}
+        mapStyle={openStreetMapStyle}
+        androidView="texture"
+        attribution
+        logo={false}
+        compass>
+        <Camera
+          initialViewState={{
+            center: [center.longitude, center.latitude],
+            zoom: zoomByRadius[radiusKm],
+          }}
+          minZoom={3}
+          maxZoom={19}
+        />
+
+        <Marker id="search-center" lngLat={[center.longitude, center.latitude]} anchor="center">
+          <View
+            pointerEvents="none"
+            style={[
+              styles.searchCenterMarker,
+              { backgroundColor: theme.colors.surface, borderColor: theme.colors.primary },
+            ]}>
+            <MaterialCommunityIcons name="crosshairs-gps" size={18} color={theme.colors.primary} />
+          </View>
+        </Marker>
+
+        {results.map(({ post }, index) => (
+          <Marker
             key={post.id}
-            borderless
-            onPress={() => onSelect(post)}
-            accessibilityRole="button"
-            accessibilityLabel={`Abrir ${post.title} en ${post.location.label}`}
-            style={[styles.resultPin, { left: left as never, top: top as never, backgroundColor: theme.colors.primary }]}>
-            <Text variant="labelSmall" style={styles.resultPinText}>{index + 1}</Text>
-          </TouchableRipple>
-        );
-      })}
-      <View style={[styles.mapLegend, { backgroundColor: theme.colors.surface }]}>
+            id={`result-${post.id}`}
+            lngLat={[post.location.longitude, post.location.latitude]}
+            anchor="bottom">
+            <TouchableRipple
+              borderless
+              onPress={() => onSelect(post)}
+              accessibilityRole="button"
+              accessibilityLabel={`Abrir ${post.title} en ${post.location.label}`}
+              style={[styles.resultPin, { backgroundColor: theme.colors.primary }]}>
+              <Text variant="labelSmall" style={styles.resultPinText}>{index + 1}</Text>
+            </TouchableRipple>
+          </Marker>
+        ))}
+      </Map>
+
+      {results.length === 0 ? (
+        <View pointerEvents="none" style={[styles.mapEmpty, { backgroundColor: theme.colors.surface }]}>
+          <MaterialCommunityIcons name="map-marker-off-outline" size={22} color={theme.colors.onSurfaceVariant} />
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>
+            No hay publicaciones dentro de este radio con los filtros actuales.
+          </Text>
+        </View>
+      ) : null}
+
+      <View pointerEvents="none" style={[styles.mapLegend, { backgroundColor: theme.colors.surface }]}>
+        <View style={styles.mapLegendRow}>
+          <MaterialCommunityIcons name="crosshairs-gps" size={17} color={theme.colors.primary} />
+          <Text variant="labelMedium" numberOfLines={1} style={{ color: theme.colors.onSurface, flex: 1, fontWeight: '700' }}>
+            {center.label} · radio {radiusKm} km
+          </Text>
+        </View>
         <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-          Ubicaciones aproximadas · tocá un número
+          Ubicaciones aproximadas · tocá un número para abrir la publicación
         </Text>
       </View>
     </Surface>
@@ -92,25 +174,24 @@ export function SearchView() {
   const [locationDialog, setLocationDialog] = useState(false);
   const fade = useRef(new Animated.Value(1)).current;
 
-  const neighborhoods = useMemo(
-    () => ['all', ...new Set(posts.map(post => post.location.neighborhood).filter((value): value is string => Boolean(value)))],
-    [posts],
-  );
-
   const results = useMemo<ResultPost[]>(() => {
     const filtered = posts
       .map(post => ({ post, distanceKm: calculateDistanceKm(searchFilters.center, post.location) }))
       .filter(({ post, distanceKm }) => {
         const author = authors.find(candidate => candidate.id === post.authorId);
         const searchable = `${post.title} ${post.description} ${post.location.label} ${author?.name ?? ''} ${postCategoryLabel[post.category]}`;
+        const conditionMatches =
+          searchFilters.condition === 'all' ||
+          (searchFilters.condition === 'good'
+            ? post.condition === 'good' || post.condition === 'very-good'
+            : post.condition === searchFilters.condition);
+
         return (
           fuzzyIncludes(searchable, searchFilters.query) &&
           (searchFilters.category === 'all' || post.category === searchFilters.category) &&
           (searchFilters.kind === 'all' || post.kind === searchFilters.kind) &&
-          (searchFilters.locality === 'all' || post.location.locality === searchFilters.locality) &&
-          (searchFilters.neighborhood === 'all' || post.location.neighborhood === searchFilters.neighborhood) &&
           (searchFilters.status === 'all' || post.status === searchFilters.status) &&
-          (searchFilters.condition === 'all' || post.condition === searchFilters.condition) &&
+          conditionMatches &&
           (searchFilters.delivery === 'all' || post.delivery === searchFilters.delivery) &&
           distanceKm <= searchFilters.radiusKm
         );
@@ -132,8 +213,6 @@ export function SearchView() {
   const activeFilterCount = [
     searchFilters.category !== 'all',
     searchFilters.kind !== 'all',
-    searchFilters.locality !== 'all',
-    searchFilters.neighborhood !== 'all',
     searchFilters.status !== 'available',
     searchFilters.condition !== 'all',
     searchFilters.delivery !== 'all',
@@ -208,22 +287,14 @@ export function SearchView() {
                       <CategoryChip key={item} label={item === 'all' ? 'Todas' : postCategoryLabel[item]} selected={searchFilters.category === item} onPress={() => updateSearchFilters({ category: item })} />
                     ))}
                   </FilterGroup>
+                  <FilterGroup title="Ubicación aproximada">
+                    <Button mode="outlined" icon="map-marker-radius-outline" onPress={() => setLocationDialog(true)}>
+                      Seleccionar en el mapa
+                    </Button>
+                  </FilterGroup>
                   <FilterGroup title="Radio de búsqueda">
                     {radii.map(radius => (
                       <CategoryChip key={radius} label={`${radius} km`} selected={searchFilters.radiusKm === radius} onPress={() => updateSearchFilters({ radiusKm: radius })} />
-                    ))}
-                  </FilterGroup>
-                  <Button mode="outlined" icon="map-marker-radius-outline" onPress={() => setLocationDialog(true)}>
-                    Cambiar punto de búsqueda
-                  </Button>
-                  <FilterGroup title="Localidad">
-                    {localities.map(item => (
-                      <CategoryChip key={item} label={item === 'all' ? 'Todas' : item} selected={searchFilters.locality === item} onPress={() => updateSearchFilters({ locality: item })} />
-                    ))}
-                  </FilterGroup>
-                  <FilterGroup title="Barrio">
-                    {neighborhoods.map(item => (
-                      <CategoryChip key={item} label={item === 'all' ? 'Todos' : item} selected={searchFilters.neighborhood === item} onPress={() => updateSearchFilters({ neighborhood: item })} />
                     ))}
                   </FilterGroup>
                   <FilterGroup title="Disponibilidad">
@@ -233,7 +304,12 @@ export function SearchView() {
                   </FilterGroup>
                   <FilterGroup title="Condición del artículo">
                     {conditions.map(item => (
-                      <CategoryChip key={item} label={item === 'all' ? 'Cualquiera' : conditionLabel[item]} selected={searchFilters.condition === item} onPress={() => updateSearchFilters({ condition: item })} />
+                      <CategoryChip
+                        key={item}
+                        label={item === 'all' ? 'Cualquiera' : item === 'new' ? 'Nuevo' : 'Usado'}
+                        selected={searchFilters.condition === item}
+                        onPress={() => updateSearchFilters({ condition: item })}
+                      />
                     ))}
                   </FilterGroup>
                   <FilterGroup title="Forma de entrega">
@@ -266,7 +342,14 @@ export function SearchView() {
             </View>
 
             {isHydrating ? <><SkeletonPostCard /><SkeletonPostCard /></> : null}
-            {!isHydrating && searchFilters.viewMode === 'map' ? <ResultsMap results={results} onSelect={openPost} /> : null}
+            {!isHydrating && searchFilters.viewMode === 'map' ? (
+              <ResultsMap
+                results={results}
+                center={searchFilters.center}
+                radiusKm={searchFilters.radiusKm}
+                onSelect={openPost}
+              />
+            ) : null}
           </View>
         }
         renderItem={({ item }) => {
@@ -288,7 +371,7 @@ export function SearchView() {
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={
           !isHydrating && searchFilters.viewMode === 'list' ? (
-            <Animated.View style={[styles.emptyState, { opacity: fade }]}>
+            <Animated.View style={[styles.emptyState, { opacity: fade }]}> 
               <MaterialCommunityIcons name="magnify-close" size={48} color={theme.colors.onSurfaceVariant} />
               <Text variant="titleLarge" style={[styles.emptyTitle, { color: theme.colors.onSurface }]}>No encontramos publicaciones</Text>
               <Text variant="bodyMedium" style={[styles.emptyCopy, { color: theme.colors.onSurfaceVariant }]}>Probá ampliar el radio o limpiar alguno de los filtros.</Text>
@@ -300,13 +383,13 @@ export function SearchView() {
 
       <Portal>
         <Dialog visible={locationDialog} onDismiss={() => setLocationDialog(false)} style={styles.locationDialog}>
-          <Dialog.Title>Punto de búsqueda</Dialog.Title>
+          <Dialog.Title>Ubicación aproximada</Dialog.Title>
           <Dialog.ScrollArea style={styles.dialogScrollArea}>
             <ScrollView contentContainerStyle={styles.dialogContent}>
               <LocationPicker
-                value={{ ...searchFilters.center, locality: searchFilters.locality === 'all' ? 'Neuquén capital' : searchFilters.locality }}
+                value={{ ...searchFilters.center, locality: 'Neuquén capital' }}
                 onChange={location => {
-                  updateSearchFilters({ center: { label: location.locality, latitude: location.latitude, longitude: location.longitude } });
+                  updateSearchFilters({ center: { label: 'Ubicación aproximada', latitude: location.latitude, longitude: location.longitude } });
                   setLocationDialog(false);
                 }}
               />
@@ -354,10 +437,12 @@ const styles = StyleSheet.create({
   emptyTitle: { textAlign: 'center', fontWeight: '800' },
   emptyCopy: { textAlign: 'center', lineHeight: 22 },
   resultsMap: { height: 360, overflow: 'hidden', borderWidth: 1, borderRadius: 22 },
-  mapRiver: { position: 'absolute', left: '-8%', right: '-8%', bottom: 42, height: 28, transform: [{ rotate: '-4deg' }] },
-  resultPin: { position: 'absolute', width: 34, height: 34, marginLeft: -17, marginTop: -17, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
+  resultPin: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 999, borderWidth: 2, borderColor: '#FFFFFF' },
   resultPinText: { color: '#FFFFFF', fontWeight: '800' },
-  mapLegend: { position: 'absolute', left: 12, right: 12, bottom: 12, borderRadius: 12, padding: 10 },
+  searchCenterMarker: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 999, borderWidth: 2 },
+  mapLegend: { position: 'absolute', left: 12, right: 12, bottom: 12, gap: 3, borderRadius: 12, padding: 10 },
+  mapLegendRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  mapEmpty: { position: 'absolute', top: 16, left: 16, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 12, padding: 12 },
   locationDialog: { width: '94%', maxWidth: 620, alignSelf: 'center' },
   dialogScrollArea: { paddingHorizontal: 0 },
   dialogContent: { padding: 18 },

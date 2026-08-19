@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
-import { type GestureResponderEvent, StyleSheet, View } from 'react-native';
+import { type ComponentProps } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Surface, Text, TouchableRipple, useTheme } from 'react-native-paper';
+import { Camera, Map, Marker } from '@maplibre/maplibre-react-native';
+import { Surface, Text, useTheme } from 'react-native-paper';
 
 import { type PostLocation } from '@/data/posts';
 import { CategoryChip } from './category-chip';
@@ -10,6 +11,31 @@ type LocationPickerProps = {
   value?: PostLocation;
   onChange: (location: PostLocation) => void;
   error?: string;
+};
+
+type MapStyle = Extract<ComponentProps<typeof Map>['mapStyle'], object>;
+
+const openStreetMapStyle: MapStyle = {
+  version: 8,
+  sources: {
+    openstreetmap: {
+      type: 'raster',
+      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      minzoom: 0,
+      maxzoom: 19,
+      attribution: '© OpenStreetMap contributors',
+    },
+  },
+  layers: [
+    {
+      id: 'openstreetmap',
+      type: 'raster',
+      source: 'openstreetmap',
+      minzoom: 0,
+      maxzoom: 19,
+    },
+  ],
 };
 
 const locations: Array<Omit<PostLocation, 'label'> & { shortLabel: string; label: string }> = [
@@ -43,14 +69,7 @@ const locations: Array<Omit<PostLocation, 'label'> & { shortLabel: string; label
   },
 ];
 
-const bounds = { north: -38.76, south: -39.08, west: -69.34, east: -67.95 };
-
-function pointPosition(latitude: number, longitude: number) {
-  return {
-    left: `${((longitude - bounds.west) / (bounds.east - bounds.west)) * 100}%` as const,
-    top: `${((bounds.north - latitude) / (bounds.north - bounds.south)) * 100}%` as const,
-  };
-}
+const defaultLocation = locations[0];
 
 function nearestLocation(latitude: number, longitude: number) {
   return locations.reduce((closest, item) => {
@@ -62,70 +81,70 @@ function nearestLocation(latitude: number, longitude: number) {
 
 export function LocationPicker({ value, onChange, error }: LocationPickerProps) {
   const theme = useTheme();
-  const [size, setSize] = useState({ width: 1, height: 1 });
-  const selectedPosition = useMemo(
-    () => (value ? pointPosition(value.latitude, value.longitude) : undefined),
-    [value],
-  );
+  const center = value ?? defaultLocation;
+  const mapKey = `${center.latitude}-${center.longitude}`;
 
-  const selectPoint = (event: GestureResponderEvent) => {
-    const x = Math.max(0, Math.min(size.width, event.nativeEvent.locationX));
-    const y = Math.max(0, Math.min(size.height, event.nativeEvent.locationY));
-    const longitude = bounds.west + (x / size.width) * (bounds.east - bounds.west);
-    const latitude = bounds.north - (y / size.height) * (bounds.north - bounds.south);
+  const selectPoint: NonNullable<ComponentProps<typeof Map>['onPress']> = event => {
+    const [rawLongitude, rawLatitude] = event.nativeEvent.lngLat;
+    const latitude = Number(rawLatitude.toFixed(3));
+    const longitude = Number(rawLongitude.toFixed(3));
     const nearest = nearestLocation(latitude, longitude);
+
     onChange({
       locality: nearest.locality,
       label: `${nearest.locality} · punto aproximado`,
-      latitude: Number(latitude.toFixed(5)),
-      longitude: Number(longitude.toFixed(5)),
+      latitude,
+      longitude,
     });
   };
 
   return (
     <View style={styles.root}>
-      <TouchableRipple
-        accessibilityRole="button"
-        accessibilityLabel="Mapa aproximado de Neuquén. Tocá para elegir una ubicación"
-        accessibilityHint="También podés elegir una localidad debajo del mapa"
-        onPress={selectPoint}
-        style={styles.mapRipple}>
-        <Surface
-          onLayout={event => setSize(event.nativeEvent.layout)}
-          elevation={0}
-          style={[
-            styles.map,
-            {
-              backgroundColor: theme.colors.surfaceVariant,
-              borderColor: error ? theme.colors.error : theme.colors.outlineVariant,
-            },
-          ]}>
-          <View style={[styles.river, { backgroundColor: '#B8D9E8' }]} />
-          <View style={[styles.route, { borderColor: theme.colors.outlineVariant }]} />
-          {locations.map(location => {
-            const position = pointPosition(location.latitude, location.longitude);
-            return (
-              <View key={location.locality} pointerEvents="none" style={[styles.place, position]}>
-                <View style={[styles.placeDot, { backgroundColor: theme.colors.onSurfaceVariant }]} />
-                <Text variant="labelSmall" style={[styles.placeLabel, { color: theme.colors.onSurfaceVariant }]}>
-                  {location.shortLabel}
-                </Text>
+      <Surface
+        elevation={0}
+        accessibilityLabel="Mapa de OpenStreetMap para elegir un punto aproximado"
+        style={[
+          styles.mapFrame,
+          { borderColor: error ? theme.colors.error : theme.colors.outlineVariant },
+        ]}>
+        <Map
+          key={mapKey}
+          style={StyleSheet.absoluteFillObject}
+          mapStyle={openStreetMapStyle}
+          androidView="texture"
+          attribution
+          logo={false}
+          compass
+          onPress={selectPoint}>
+          <Camera
+            initialViewState={{
+              center: [center.longitude, center.latitude],
+              zoom: value ? 12.5 : 10.5,
+            }}
+            minZoom={4}
+            maxZoom={19}
+          />
+
+          {value ? (
+            <Marker id="selected-location" lngLat={[value.longitude, value.latitude]} anchor="bottom">
+              <View pointerEvents="none" style={styles.pinWrap}>
+                <MaterialCommunityIcons name="map-marker" size={42} color={theme.colors.primary} />
               </View>
-            );
-          })}
-          {selectedPosition ? (
-            <View pointerEvents="none" style={[styles.pin, selectedPosition]}>
-              <MaterialCommunityIcons name="map-marker" size={32} color={theme.colors.primary} />
-            </View>
+            </Marker>
           ) : null}
-          <View pointerEvents="none" style={[styles.mapHint, { backgroundColor: theme.colors.surface }]}>
-            <MaterialCommunityIcons name="gesture-tap" size={17} color={theme.colors.primary} />
-            <Text variant="labelSmall" style={{ color: theme.colors.onSurface }}>
-              Tocá un punto
-            </Text>
-          </View>
-        </Surface>
-      </TouchableRipple>
+        </Map>
+
+        <View pointerEvents="none" style={[styles.mapHint, { backgroundColor: theme.colors.surface }]}>
+          <MaterialCommunityIcons name="gesture-tap" size={17} color={theme.colors.primary} />
+          <Text variant="labelMedium" style={{ color: theme.colors.onSurface, fontWeight: '700' }}>
+            Tocá el mapa
+          </Text>
+        </View>
+      </Surface>
+
+      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+        Elegí un punto en el mapa o usá una localidad como referencia rápida.
+      </Text>
 
       <View style={styles.chips}>
         {locations.map(location => (
@@ -133,24 +152,27 @@ export function LocationPicker({ value, onChange, error }: LocationPickerProps) 
             key={location.locality}
             label={location.shortLabel}
             selected={value?.locality === location.locality}
-            onPress={() => onChange({
-              label: location.label,
-              locality: location.locality,
-              latitude: location.latitude,
-              longitude: location.longitude,
-            })}
+            onPress={() =>
+              onChange({
+                label: location.label,
+                locality: location.locality,
+                latitude: location.latitude,
+                longitude: location.longitude,
+              })
+            }
           />
         ))}
       </View>
 
       {value ? (
         <View style={styles.selectionRow}>
-          <MaterialCommunityIcons name="map-marker-check-outline" size={19} color={theme.colors.primary} />
+          <MaterialCommunityIcons name="map-marker-check-outline" size={20} color={theme.colors.primary} />
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, flex: 1 }}>
             {value.label} · {value.latitude.toFixed(3)}, {value.longitude.toFixed(3)}
           </Text>
         </View>
       ) : null}
+
       <Text variant="bodySmall" style={{ color: error ? theme.colors.error : theme.colors.onSurfaceVariant }}>
         {error ?? 'Solo publicamos el punto aproximado. La dirección exacta se comparte por mensaje.'}
       </Text>
@@ -160,15 +182,29 @@ export function LocationPicker({ value, onChange, error }: LocationPickerProps) 
 
 const styles = StyleSheet.create({
   root: { gap: 10 },
-  mapRipple: { borderRadius: 20 },
-  map: { height: 218, overflow: 'hidden', borderWidth: 1, borderRadius: 20 },
-  river: { position: 'absolute', left: '-8%', right: '-8%', bottom: 24, height: 22, transform: [{ rotate: '-4deg' }] },
-  route: { position: 'absolute', left: '5%', right: '4%', top: '53%', borderTopWidth: 2, borderStyle: 'dashed', transform: [{ rotate: '2deg' }] },
-  place: { position: 'absolute', flexDirection: 'row', alignItems: 'center', gap: 3, transform: [{ translateX: -4 }, { translateY: -4 }] },
-  placeDot: { width: 8, height: 8, borderRadius: 999 },
-  placeLabel: { fontWeight: '700' },
-  pin: { position: 'absolute', marginLeft: -16, marginTop: -29 },
-  mapHint: { position: 'absolute', top: 10, right: 10, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
+  mapFrame: {
+    height: 270,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderRadius: 20,
+  },
+  mapHint: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  pinWrap: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   selectionRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 });
