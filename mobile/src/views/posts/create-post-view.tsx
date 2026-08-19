@@ -3,8 +3,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Animated, BackHandler, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Camera, Map, Marker } from '@maplibre/maplibre-react-native';
-
-
 import {
   Button,
   Checkbox,
@@ -16,14 +14,8 @@ import {
   TextInput,
   useTheme,
 } from 'react-native-paper';
-import {
-  AppDatePicker,
-  AppHeader,
-  AppScreen,
-  CategoryChip,
-  SegmentedControl,
-  SmartImage,
-} from '@/components';
+
+import { AppHeader, AppScreen, CategoryChip, SegmentedControl, SmartImage } from '@/components';
 import { currentUserId } from '@/data/authors';
 import {
   getPostImageSource,
@@ -69,16 +61,31 @@ const openStreetMapStyle: MapStyle = {
 const categories: PostCategory[] = ['food', 'clothes', 'health', 'home', 'school', 'furniture', 'volunteering'];
 const conditions: Array<{ key: ArticleCondition; label: string }> = [
   { key: 'new', label: 'Nuevo' },
-  { key: 'very-good', label: 'Muy buen estado' },
-  { key: 'good', label: 'Buen estado' },
+  { key: 'good', label: 'Usado' },
 ];
 const deliveryOptions: Array<{ key: DeliveryMethod; label: string }> = [
   { key: 'coordinate', label: 'A coordinar' },
   { key: 'can-deliver', label: 'Puedo acercarlo' },
 ];
 const unitSuggestions = ['unidad', 'caja', 'bolsa', 'kit', 'persona'];
+const conditionDetailsMarker = '\n\nDetalles del estado: ';
 
-type FormErrors = Partial<Record<'title' | 'description' | 'quantity' | 'quantityUnit' | 'availability' | 'meetingPoint' | 'location' | 'images' | 'safety' | 'duplicate', string>>;
+type FormErrors = Partial<Record<'title' | 'description' | 'quantity' | 'quantityUnit' | 'location' | 'images' | 'safety' | 'duplicate', string>>;
+
+function splitDescription(value = '') {
+  const markerIndex = value.lastIndexOf(conditionDetailsMarker);
+  if (markerIndex < 0) return { description: value, conditionDetails: '' };
+  return {
+    description: value.slice(0, markerIndex),
+    conditionDetails: value.slice(markerIndex + conditionDetailsMarker.length),
+  };
+}
+
+function composeDescription(description: string, conditionDetails: string, kind: PostKind) {
+  const base = description.trim();
+  const details = conditionDetails.trim();
+  return kind === 'donation' && details ? `${base}${conditionDetailsMarker}${details}` : base;
+}
 
 function draftSignature(draft?: PostDraft) {
   return JSON.stringify([
@@ -89,11 +96,8 @@ function draftSignature(draft?: PostDraft) {
     draft?.quantity,
     draft?.quantityUnit,
     draft?.condition,
-    draft?.deadline,
     draft?.delivery,
-    draft?.availability,
     draft?.location,
-    draft?.meetingPoint,
     draft?.images,
   ]);
 }
@@ -112,6 +116,7 @@ export function CreatePostView() {
   const editPostId = Array.isArray(params.postId) ? params.postId[0] : params.postId;
   const { posts, addPost, updatePost, postDraft, savePostDraft } = useAppData();
   const editingPost = posts.find(post => post.id === editPostId && post.ownerId === 'current-user');
+
   const initial: PostDraft | undefined = editingPost
     ? {
         title: editingPost.title,
@@ -122,11 +127,8 @@ export function CreatePostView() {
         location: editingPost.location,
         quantity: editingPost.quantity,
         quantityUnit: editingPost.quantityUnit,
-        condition: editingPost.condition,
+        condition: editingPost.condition === 'new' ? 'new' : 'good',
         delivery: editingPost.delivery,
-        availability: editingPost.availability,
-        deadline: editingPost.deadline,
-        meetingPoint: editingPost.meetingPoint,
       }
     : postDraft ?? {
         kind: 'donation',
@@ -137,24 +139,22 @@ export function CreatePostView() {
         quantityUnit: 'unidad',
         condition: 'good',
         delivery: 'coordinate',
-        availability: '',
-        meetingPoint: '',
       };
+
+  const initialDescription = splitDescription(initial?.description);
   const initialRef = useRef<PostDraft | AppPost | undefined>(initial);
   const successScale = useRef(new Animated.Value(reducedMotion ? 1 : 0.65)).current;
 
   const [kind, setKind] = useState<PostKind>(initial?.kind ?? 'donation');
   const [category, setCategory] = useState<PostCategory>(initial?.category ?? 'food');
   const [title, setTitle] = useState(initial?.title ?? '');
-  const [description, setDescription] = useState(initial?.description ?? '');
+  const [description, setDescription] = useState(initialDescription.description);
+  const [conditionDetails, setConditionDetails] = useState(initialDescription.conditionDetails);
   const [quantity, setQuantity] = useState(initial?.quantity ? String(initial.quantity) : '');
   const [quantityUnit, setQuantityUnit] = useState(initial?.quantityUnit ?? 'unidad');
-  const [condition, setCondition] = useState<ArticleCondition>(initial?.condition ?? 'good');
-  const [deadline, setDeadline] = useState(initial?.deadline);
+  const [condition, setCondition] = useState<ArticleCondition>(initial?.condition === 'new' ? 'new' : 'good');
   const [delivery, setDelivery] = useState<DeliveryMethod>(initial?.delivery ?? 'coordinate');
-  const [availability, setAvailability] = useState(initial?.availability ?? '');
   const [location, setLocation] = useState<PostLocation | undefined>(initial?.location);
-  const [meetingPoint, setMeetingPoint] = useState(initial?.meetingPoint ?? '');
   const [images, setImages] = useState<PostImage[]>(initial?.images ?? []);
   const [safetyAccepted, setSafetyAccepted] = useState(Boolean(editingPost));
   const [errors, setErrors] = useState<FormErrors>({});
@@ -169,56 +169,36 @@ export function CreatePostView() {
     kind,
     category,
     title,
-    description,
+    description: composeDescription(description, conditionDetails, kind),
     quantity: quantity ? Number(quantity) : undefined,
     quantityUnit,
     condition: kind === 'donation' ? condition : undefined,
-    deadline,
     delivery,
-    availability,
     location,
-    meetingPoint,
     images,
-  }), [availability, category, condition, deadline, delivery, description, images, kind, location, meetingPoint, quantity, quantityUnit, title]);
+  }), [category, condition, conditionDetails, delivery, description, images, kind, location, quantity, quantityUnit, title]);
 
   const dirty = useMemo(() => draftSignature(currentDraft) !== draftSignature(initialRef.current), [currentDraft]);
 
-// Android: intercepta el botón físico "Atrás"
-useEffect(() => {
-  const subscription = BackHandler.addEventListener(
-    'hardwareBackPress',
-    () => {
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       if (!dirty) return false;
-
       setLeaveDialog(true);
       return true;
-    }
-  );
+    });
+    return () => subscription.remove();
+  }, [dirty]);
 
-  return () => subscription.remove();
-}, [dirty]);
-
-
-
- useEffect(() => {
-  // beforeunload solamente existe en web.
-  if (Platform.OS !== 'web') return;
-
-  const warnBeforeUnload = (event: BeforeUnloadEvent) => {
-    if (!dirty) return;
-
-    event.preventDefault();
-    event.returnValue = '';
-  };
-
-  window.addEventListener('beforeunload', warnBeforeUnload);
-
-  return () => {
-    window.removeEventListener('beforeunload', warnBeforeUnload);
-  };
-}, [dirty]);
-
-
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!dirty) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeUnload);
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
+  }, [dirty]);
 
   useEffect(() => {
     if (!successVisible || reducedMotion) return;
@@ -227,11 +207,6 @@ useEffect(() => {
   }, [reducedMotion, successScale, successVisible]);
 
   const clearError = (field: keyof FormErrors) => setErrors(current => ({ ...current, [field]: undefined }));
-
-  const leave = () => {
-    setLeaveDialog(false);
-    router.back();
-  };
 
   const attemptLeave = () => {
     if (dirty) setLeaveDialog(true);
@@ -254,7 +229,7 @@ useEffect(() => {
       }));
       setImages(current => [...current, ...nextImages]);
       clearError('images');
-      setStatusMessage(`${nextImages.length} ${nextImages.length === 1 ? 'foto agregada' : 'fotos agregadas'} y optimizadas.`);
+      setStatusMessage(`${nextImages.length} ${nextImages.length === 1 ? 'foto agregada' : 'fotos agregadas'}.`);
     } catch (error) {
       setErrors(current => ({ ...current, images: getPickImageErrorMessage(error) }));
     } finally {
@@ -263,38 +238,31 @@ useEffect(() => {
   };
 
   const selectMapLocation: NonNullable<ComponentProps<typeof Map>['onPress']> = event => {
-    // MapLibre entrega las coordenadas como [longitud, latitud].
     const [rawLongitude, rawLatitude] = event.nativeEvent.lngLat;
-
-    // Redondeamos las coordenadas para no guardar una ubicación demasiado exacta.
     const latitude = Number(rawLatitude.toFixed(3));
     const longitude = Number(rawLongitude.toFixed(3));
-
     setLocation({
       latitude,
       longitude,
       locality: 'Neuquén capital',
-      label: 'Punto aproximado seleccionado',
+      label: 'Ubicación aproximada seleccionada',
     });
-
     clearError('location');
   };
 
   const validate = () => {
     const next: FormErrors = {};
-    if (title.trim().length < 5) next.title = 'Escribí un título de al menos 5 carácteres.';
-    if (title.length > 80) next.title = 'El título puede tener hasta 80 carácteres.';
-    if (description.trim().length < 20) next.description = 'Agregá una descripción de al menos 20 carácteres.';
-    if (description.length > 600) next.description = 'La descripción puede tener hasta 600 carácteres.';
+    if (title.trim().length < 5) next.title = 'Escribí un título de al menos 5 caracteres.';
+    if (title.length > 80) next.title = 'El título puede tener hasta 80 caracteres.';
+    if (description.trim().length < 20) next.description = 'Agregá una descripción de al menos 20 caracteres.';
+    if (description.length > 600) next.description = 'La descripción puede tener hasta 600 caracteres.';
     const parsedQuantity = Number(quantity);
     if (!Number.isInteger(parsedQuantity) || parsedQuantity <= 0) next.quantity = 'Ingresá una cantidad numérica mayor que cero.';
-    if (quantityUnit.trim().length < 2) next.quantityUnit = 'Indicá la unidad: cajas, bolsas, personas, etc.';
-    if (availability.trim().length < 5) next.availability = 'Indicá días u horarios disponibles.';
-    if (!location) next.location = 'Elegí una ubicación tocando el mapa.';
-    if (meetingPoint.trim().length < 4) next.meetingPoint = 'Indicá una referencia aproximada, sin dirección exacta.';
-    if (images.length === 0) next.images = 'Agregá al menos una fotografía tomada o elegida de tu dispositivo.';
+    if (quantityUnit.trim().length < 2) next.quantityUnit = 'Indicá la unidad: cajas, bolsas, unidades, etc.';
+    if (!location) next.location = 'Elegí una ubicación aproximada tocando el mapa.';
+    if (images.length === 0) next.images = 'Agregá al menos una fotografía del objeto.';
     if (!safetyAccepted) next.safety = 'Confirmá que la publicación cumple las normas.';
-    if (containsExactAddress(`${description} ${meetingPoint}`)) next.description = 'Quitá la dirección exacta. Compartila únicamente por mensaje.';
+    if (containsExactAddress(description)) next.description = 'Quitá la dirección exacta. Compartila únicamente por mensaje.';
     if (findProhibitedContent(`${title} ${description}`)) next.description = 'La descripción parece incluir un producto prohibido o regulado.';
 
     const duplicate = posts.find(post =>
@@ -305,6 +273,7 @@ useEffect(() => {
       fuzzyIncludes(title, post.title),
     );
     if (duplicate) next.duplicate = `Ya existe una publicación similar: “${duplicate.title}”. Editala o cambiale el contenido.`;
+
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -314,12 +283,13 @@ useEffect(() => {
     if (!validate() || !location) return;
     const now = new Date().toISOString();
     const id = editingPost?.id ?? `community-${Date.now()}`;
+    const finalDescription = composeDescription(description, conditionDetails, kind);
     const post: AppPost = {
       id,
       title: title.trim(),
       kind,
       category,
-      description: description.trim(),
+      description: finalDescription,
       images,
       location,
       authorId: currentUserId,
@@ -329,9 +299,9 @@ useEffect(() => {
       quantityUnit: quantityUnit.trim().toLowerCase(),
       condition: kind === 'donation' ? condition : undefined,
       delivery,
-      availability: availability.trim(),
-      deadline,
-      meetingPoint: meetingPoint.trim(),
+      availability: '',
+      deadline: undefined,
+      meetingPoint: location.label,
       status: editingPost?.status ?? 'available',
       interestedUserIds: editingPost?.interestedUserIds ?? [],
       ownerId: 'current-user',
@@ -389,7 +359,6 @@ useEffect(() => {
           error={Boolean(errors.title)}
           outlineColor={theme.colors.outlineVariant}
           activeOutlineColor={theme.colors.primary}
-          accessibilityLabel="Título de la publicación"
         />
         <View style={styles.helperRow}><InlineError message={errors.title} /><Text variant="bodySmall" style={[styles.counter, { color: theme.colors.onSurfaceVariant }]}>{title.length}/80</Text></View>
         <TextInput
@@ -429,7 +398,6 @@ useEffect(() => {
               keyboardType="number-pad"
               inputMode="numeric"
               error={Boolean(errors.quantity)}
-              accessibilityLabel="Cantidad numérica"
             />
             <InlineError message={errors.quantity} />
           </View>
@@ -452,98 +420,66 @@ useEffect(() => {
         {kind === 'donation' ? (
           <View style={styles.fieldGroup}>
             <Text variant="labelLarge" style={{ color: theme.colors.onSurface }}>Estado del artículo</Text>
-            <View style={styles.chipRow}>{conditions.map(item => <CategoryChip key={item.key} label={item.label} selected={condition === item.key} onPress={() => setCondition(item.key)} />)}</View>
+            <View style={styles.chipRow}>
+              {conditions.map(item => <CategoryChip key={item.key} label={item.label} selected={condition === item.key} onPress={() => setCondition(item.key)} />)}
+            </View>
+            <TextInput
+              mode="outlined"
+              label="Detalles del estado (opcional)"
+              placeholder="Ej.: Tiene una pequeña marca en un costado, funciona correctamente."
+              value={conditionDetails}
+              onChangeText={value => setConditionDetails(value.slice(0, 240))}
+              multiline
+              numberOfLines={3}
+            />
+            <Surface elevation={0} style={[styles.goodConditionNotice, { backgroundColor: theme.colors.primaryContainer }]}>
+              <MaterialCommunityIcons name="check-decagram-outline" size={23} color={theme.colors.primary} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text variant="labelLarge" style={{ color: theme.colors.onSurface, fontWeight: '900' }}>EL OBJETO TIENE QUE ESTAR EN BUEN ESTADO</Text>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>No publiques objetos rotos, inseguros o que no puedan utilizarse de manera adecuada. Informá cualquier detalle visible o de funcionamiento.</Text>
+              </View>
+            </Surface>
           </View>
         ) : null}
-
-        <AppDatePicker label="Fecha límite (opcional)" value={deadline} onChange={setDeadline} />
 
         <View style={styles.fieldGroup}>
           <Text variant="labelLarge" style={{ color: theme.colors.onSurface }}>Forma de entrega</Text>
           <View style={styles.chipRow}>{deliveryOptions.map(item => <CategoryChip key={item.key} label={item.label} selected={delivery === item.key} onPress={() => setDelivery(item.key)} />)}</View>
         </View>
-
-        <TextInput
-          mode="outlined"
-          label="Disponibilidad"
-          placeholder="Ej.: Lunes a viernes después de las 17 h"
-          value={availability}
-          onChangeText={value => { setAvailability(value.slice(0, 120)); clearError('availability'); }}
-          error={Boolean(errors.availability)}
-          left={<TextInput.Icon icon="clock-outline" />}
-        />
-        <InlineError message={errors.availability} />
       </Surface>
 
       <View style={styles.section}>
-        <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Ubicación y encuentro</Text>
-<View
-  style={[
-    styles.mapContainer,
-    {
-      borderColor: errors.location
-        ? theme.colors.error
-        : theme.colors.outlineVariant,
-    },
-  ]}>
-  <Map
-    style={StyleSheet.absoluteFillObject}
-    mapStyle={openStreetMapStyle}
-    onPress={selectMapLocation}
-    androidView="texture"
-    attribution
-    logo={false}
-    compass
-  >
-    <Camera
-      initialViewState={{
-        center: [-68.0591, -38.9516],
-        zoom: 12,
-      }}
-      minZoom={3}
-      maxZoom={19}
-    />
-
-    {location ? (
-      <Marker
-        id="selected-location"
-        lngLat={[location.longitude, location.latitude]}
-        anchor="bottom"
-      >
-        <View
-          style={[
-            styles.mapMarker,
-            { backgroundColor: theme.colors.primary },
-          ]}
-        >
-          <MaterialCommunityIcons
-            name="map-marker"
-            size={28}
-            color="#FFFFFF"
-          />
+        <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Ubicación aproximada</Text>
+        <View style={[styles.mapContainer, { borderColor: errors.location ? theme.colors.error : theme.colors.outlineVariant }]}>
+          <Map
+            style={StyleSheet.absoluteFillObject}
+            mapStyle={openStreetMapStyle}
+            onPress={selectMapLocation}
+            androidView="texture"
+            attribution
+            logo={false}
+            compass>
+            <Camera initialViewState={{ center: [-68.0591, -38.9516], zoom: 12 }} minZoom={3} maxZoom={19} />
+            {location ? (
+              <Marker id="selected-location" lngLat={[location.longitude, location.latitude]} anchor="bottom">
+                <View style={[styles.mapMarker, { backgroundColor: theme.colors.primary }]}>
+                  <MaterialCommunityIcons name="map-marker" size={28} color="#FFFFFF" />
+                </View>
+              </Marker>
+            ) : null}
+          </Map>
         </View>
-      </Marker>
-    ) : null}
-  </Map>
-</View>
-
-<Text
-  variant="bodySmall"
-  style={{
-    color: errors.location
-      ? theme.colors.error
-      : theme.colors.onSurfaceVariant,
-  }}>
-  {errors.location ??
-    'Tocá un punto del mapa. Solo se publicará una ubicación aproximada.'}
-</Text>
-       
-        <InlineError message={errors.meetingPoint} />
+        <Text variant="bodySmall" style={{ color: errors.location ? theme.colors.error : theme.colors.onSurfaceVariant }}>
+          {errors.location ?? 'Tocá un punto del mapa. La publicación mostrará únicamente una ubicación aproximada.'}
+        </Text>
       </View>
 
       <View style={styles.section}>
         <View style={styles.sectionHeadingRow}>
-          <View style={{ flex: 1 }}><Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Fotografías</Text><Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>Hasta 5 fotos · se optimizan antes de agregarlas</Text></View>
+          <View style={{ flex: 1 }}>
+            <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Fotografías</Text>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>Hasta 5 fotos claras y actuales del objeto</Text>
+          </View>
           <Button mode="outlined" icon="camera-plus-outline" loading={selectingImages} disabled={images.length >= 5 || selectingImages} onPress={() => setPhotoDialog(true)}>Agregar</Button>
         </View>
         {images.length ? (
@@ -559,7 +495,7 @@ useEffect(() => {
         ) : (
           <Surface elevation={0} style={[styles.photoEmpty, { backgroundColor: theme.colors.surface, borderColor: errors.images ? theme.colors.error : theme.colors.outlineVariant }]}>
             <MaterialCommunityIcons name="image-multiple-outline" size={36} color={theme.colors.onSurfaceVariant} />
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>Mostrá la condición y la cantidad con fotos claras.</Text>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>Mostrá claramente el estado y la cantidad.</Text>
           </Surface>
         )}
         <InlineError message={errors.images} />
@@ -570,11 +506,11 @@ useEffect(() => {
         <View style={styles.safetyCopy}>
           <Text variant="titleSmall" style={{ color: theme.colors.onSurface, fontWeight: '800' }}>Normas de publicación</Text>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, lineHeight: 19 }}>
-            No se permiten medicamentos abiertos, comida vencida, sangre, armas ni elementos peligrosos. No publiques domicilios exactos ni pidas dinero.
+            Publicá información verdadera y fotos actuales. Los objetos deben ser seguros, legales y estar en condiciones de uso. No se permiten alimentos vencidos, medicamentos abiertos, armas, sustancias peligrosas, pedidos de dinero ni domicilios exactos. Las publicaciones que incumplan estas reglas pueden ser retiradas y la cuenta puede ser restringida.
           </Text>
           <TouchableCheck checked={safetyAccepted} onPress={() => { setSafetyAccepted(current => !current); clearError('safety'); }} />
           <InlineError message={errors.safety} />
-          <Button compact mode="text" onPress={() => router.push('/safety')}>Leer política completa</Button>
+          <Button compact mode="text" onPress={() => router.push('/safety')}>Leer normas completas</Button>
         </View>
       </Surface>
 
@@ -594,7 +530,7 @@ useEffect(() => {
           <Dialog.Actions>
             <Button onPress={() => setLeaveDialog(false)}>Seguir editando</Button>
             {!editingPost ? <Button onPress={() => { saveDraft(); setLeaveDialog(false); router.back(); }}>Guardar borrador</Button> : null}
-            <Button textColor={theme.colors.error} onPress={leave}>Descartar</Button>
+            <Button textColor={theme.colors.error} onPress={() => { setLeaveDialog(false); router.back(); }}>Descartar</Button>
           </Dialog.Actions>
         </Dialog>
 
@@ -604,7 +540,7 @@ useEffect(() => {
               <MaterialCommunityIcons name="check" size={38} color={theme.colors.primary} />
             </Animated.View>
             <Text variant="headlineSmall" style={[styles.successTitle, { color: theme.colors.onSurface }]}>{editingPost ? 'Publicación actualizada' : 'Publicación creada correctamente'}</Text>
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>Ya está visible con sus datos y estado actualizados.</Text>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>La publicación ya está visible para la comunidad.</Text>
           </Dialog.Content>
           <Dialog.Actions><Button mode="contained" onPress={() => { if (!createdPostId) return; setSuccessVisible(false); router.replace({ pathname: '/post/[postId]', params: { postId: createdPostId } }); }}>Ver publicación</Button></Dialog.Actions>
         </Dialog>
@@ -617,27 +553,17 @@ function TouchableCheck({ checked, onPress }: { checked: boolean; onPress: () =>
   const theme = useTheme();
   return (
     <Button mode="text" onPress={onPress} contentStyle={styles.checkButton} accessibilityState={{ checked }} accessibilityRole="checkbox">
-      <View style={styles.checkInner}><Checkbox status={checked ? 'checked' : 'unchecked'} /><Text variant="bodyMedium" style={{ color: theme.colors.onSurface, flex: 1 }}>Confirmo que el contenido es seguro y verdadero.</Text></View>
+      <View style={styles.checkInner}>
+        <Checkbox status={checked ? 'checked' : 'unchecked'} />
+        <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, flex: 1 }}>Confirmo que la publicación cumple las normas y que la información es verdadera.</Text>
+      </View>
     </Button>
   );
 }
 
 const styles = StyleSheet.create({
-
-  mapMarker: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  mapContainer: {
-  height: 240,
-  borderRadius: 20,
-  borderWidth: 1,
-  overflow: 'hidden',
-},
+  mapMarker: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  mapContainer: { height: 240, borderRadius: 20, borderWidth: 1, overflow: 'hidden' },
   content: { paddingBottom: 18, gap: 22 },
   section: { gap: 11, paddingHorizontal: 16 },
   sectionTitle: { fontWeight: '800' },
@@ -651,6 +577,7 @@ const styles = StyleSheet.create({
   quantityInput: { flex: 0.75, gap: 4 },
   unitInput: { flex: 1.25, gap: 4 },
   fieldGroup: { gap: 9 },
+  goodConditionNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 14, padding: 12 },
   photoRow: { gap: 10, paddingRight: 16 },
   photoWrap: { width: 150, height: 118, overflow: 'hidden', borderRadius: 14 },
   photo: { width: '100%', height: '100%' },
