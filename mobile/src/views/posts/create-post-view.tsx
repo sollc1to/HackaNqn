@@ -452,7 +452,7 @@ export function CreatePostView() {
         <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Ubicación aproximada</Text>
         <View style={[styles.mapContainer, { borderColor: errors.location ? theme.colors.error : theme.colors.outlineVariant }]}>
           <Map
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             mapStyle={openStreetMapStyle}
             onPress={selectMapLocation}
             androidView="texture"

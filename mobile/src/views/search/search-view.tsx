@@ -85,7 +85,7 @@ function ResultsMap({
       style={[styles.resultsMap, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }]}>
       <Map
         key={mapKey}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
         mapStyle={openStreetMapStyle}
         androidView="texture"
         attribution

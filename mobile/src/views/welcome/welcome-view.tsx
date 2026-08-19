@@ -5,8 +5,10 @@ import { Button, Surface, Text, useTheme } from 'react-native-paper';
 
 import { AppScreen } from '@/components';
 
-const highlights = [
-  
+const highlights: Array<{ icon: keyof typeof MaterialCommunityIcons.glyphMap; label: string }> = [
+  { icon: 'hand-heart-outline', label: 'Ayuda cercana' },
+  { icon: 'map-marker-radius-outline', label: 'Puntos aproximados' },
+  { icon: 'message-text-outline', label: 'Coordinación directa' },
 ];
 
 export function WelcomeView() {

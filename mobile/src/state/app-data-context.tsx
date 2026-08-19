@@ -16,6 +16,7 @@ import {
   type PostKind,
   type PostStatus,
 } from '@/data/posts';
+import { fetchBackendPosts, mergeAuthorsWithPosts, normalizeBackendPost } from '@/lib/backend-api';
 
 export type SearchRadius = 2 | 5 | 10 | 20;
 export type SearchViewMode = 'list' | 'map';
@@ -172,10 +173,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     const hydrate = async () => {
       setIsHydrating(true);
       setDataError('');
+      let persistedState: Partial<PersistedState> | undefined;
+      const hasPersistedPosts = (saved: Partial<PersistedState> | undefined) => Boolean(saved?.posts?.length);
       try {
         const raw = getBrowserStorage()?.getItem(storageKey);
         if (raw) {
           const saved = JSON.parse(raw) as Partial<PersistedState>;
+          persistedState = saved;
           if (!active) return;
           if (saved.posts) setPosts(saved.posts);
           if (saved.savedPostIds) setSavedPostIds(saved.savedPostIds);
@@ -190,7 +194,35 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       } catch {
         setDataError('No pudimos recuperar los datos guardados en este dispositivo.');
       } finally {
-        setTimeout(() => active && setIsHydrating(false), 220);
+        const shouldUseRemotePosts = !hasPersistedPosts(persistedState);
+
+        try {
+          const remotePosts = await fetchBackendPosts();
+
+          if (!active) return;
+
+          if (remotePosts.length > 0) {
+            const normalizedPosts = remotePosts.map(normalizeBackendPost);
+            setPosts(normalizedPosts);
+            setAuthors(mergeAuthorsWithPosts(persistedState?.authors ?? appAuthors, normalizedPosts));
+            setDataError('');
+          } else if (shouldUseRemotePosts) {
+            setPosts(appPosts);
+            setAuthors(mergeAuthorsWithPosts(persistedState?.authors ?? appAuthors, appPosts));
+          }
+        } catch {
+          if (!active) return;
+
+          if (shouldUseRemotePosts) {
+            setPosts(appPosts);
+            setAuthors(mergeAuthorsWithPosts(persistedState?.authors ?? appAuthors, appPosts));
+            setDataError('No pudimos conectar con el backend. Se muestran los datos de demostración.');
+          } else {
+            setDataError('No pudimos conectar con el backend, pero conservamos tus datos guardados.');
+          }
+        } finally {
+          setTimeout(() => active && setIsHydrating(false), 220);
+        }
       }
     };
     hydrate();

@@ -17,6 +17,7 @@ import {
   AppScreen,
   SegmentedControl,
 } from '@/components';
+import { loginWithBackend, registerWithBackend } from '@/lib/backend-api';
 
 type AuthMode = 'signin' | 'signup';
 type AccountType = 'person' | 'organization';
@@ -142,7 +143,12 @@ export function AuthView() {
 
   const validateSignin = () => {
     if (username.trim().length < 1) {
-      setMessage('Ingresá tu usuario.');
+      setMessage('Ingresá tu correo electrónico.');
+      return false;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(username.trim())) {
+      setMessage('Ingresá un correo electrónico válido.');
       return false;
     }
 
@@ -167,11 +173,42 @@ export function AuthView() {
     setSubmitting(true);
 
     try {
-      // Flujo de demostración.
-      // Acá después se conecta el backend / servicio de autenticación.
-      await new Promise(resolve => setTimeout(resolve, 450));
+      if (mode === 'signin') {
+        const response = await loginWithBackend({
+          email: username.trim().toLowerCase(),
+          password,
+        });
 
+        if (rememberMe && typeof globalThis !== 'undefined' && 'localStorage' in globalThis) {
+          globalThis.localStorage.setItem('nexo-solidario-token', response.token);
+          globalThis.localStorage.setItem('nexo-solidario-user', JSON.stringify(response.user));
+        }
+
+        setMessage('Sesión iniciada correctamente.');
+        router.replace('/dashboard');
+        return;
+      }
+
+      const response = await registerWithBackend({
+        name: (accountType === 'organization' ? organizationName : name).trim(),
+        lastName: lastName.trim(),
+        email: email.trim().toLowerCase(),
+        password,
+        phone: phone.trim(),
+        birthDate: birthDate ?? new Date().toISOString(),
+        address: address.trim(),
+        role: accountType === 'organization' ? 'organizacion' : 'normal',
+      });
+
+      if (rememberMe && typeof globalThis !== 'undefined' && 'localStorage' in globalThis) {
+        globalThis.localStorage.setItem('nexo-solidario-token', response.token);
+        globalThis.localStorage.setItem('nexo-solidario-user', JSON.stringify(response.user));
+      }
+
+      setMessage('Cuenta creada correctamente.');
       router.replace('/dashboard');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'No pudimos completar el acceso.');
     } finally {
       setSubmitting(false);
     }
@@ -406,18 +443,19 @@ export function AuthView() {
           ) : (
             <TextInput
               mode="outlined"
-              label="Usuario"
-              placeholder="Ingresá tu usuario"
+              label="Correo electrónico"
+              placeholder="nombre@ejemplo.com"
               value={username}
               onChangeText={value => {
                 setUsername(value);
                 clearMessage();
               }}
               autoCapitalize="none"
+              keyboardType="email-address"
               outlineColor={theme.colors.outlineVariant}
               activeOutlineColor={theme.colors.primary}
               style={styles.input}
-              left={<TextInput.Icon icon="account-outline" />}
+              left={<TextInput.Icon icon="email-outline" />}
             />
           )}
 

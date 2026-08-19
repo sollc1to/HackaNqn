@@ -109,7 +109,7 @@ export function LocationPicker({ value, onChange, error }: LocationPickerProps) 
         ]}>
         <Map
           key={mapKey}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           mapStyle={openStreetMapStyle}
           androidView="texture"
           attribution
