@@ -49,7 +49,6 @@ const openStreetMapStyle: MapStyle = {
 };
 
 const categories: Array<'all' | PostCategory> = ['all', 'food', 'clothes', 'health', 'home', 'school', 'furniture', 'volunteering'];
-const localities: Array<'all' | AppPost['location']['locality']> = ['all', 'Neuquén capital', 'Plottier', 'Centenario', 'Cutral Co'];
 const conditions: Array<'all' | ArticleCondition> = ['all', 'new', 'very-good', 'good'];
 const deliveries: Array<'all' | DeliveryMethod> = ['all', 'coordinate', 'can-deliver'];
 const statuses: Array<'all' | Exclude<PostStatus, 'paused'>> = ['all', 'available', 'reserved', 'completed'];
@@ -176,11 +175,6 @@ export function SearchView() {
   const [locationDialog, setLocationDialog] = useState(false);
   const fade = useRef(new Animated.Value(1)).current;
 
-  const neighborhoods = useMemo(
-    () => ['all', ...new Set(posts.map(post => post.location.neighborhood).filter((value): value is string => Boolean(value)))],
-    [posts],
-  );
-
   const results = useMemo<ResultPost[]>(() => {
     const filtered = posts
       .map(post => ({ post, distanceKm: calculateDistanceKm(searchFilters.center, post.location) }))
@@ -191,8 +185,6 @@ export function SearchView() {
           fuzzyIncludes(searchable, searchFilters.query) &&
           (searchFilters.category === 'all' || post.category === searchFilters.category) &&
           (searchFilters.kind === 'all' || post.kind === searchFilters.kind) &&
-          (searchFilters.locality === 'all' || post.location.locality === searchFilters.locality) &&
-          (searchFilters.neighborhood === 'all' || post.location.neighborhood === searchFilters.neighborhood) &&
           (searchFilters.status === 'all' || post.status === searchFilters.status) &&
           (searchFilters.condition === 'all' || post.condition === searchFilters.condition) &&
           (searchFilters.delivery === 'all' || post.delivery === searchFilters.delivery) &&
@@ -216,8 +208,6 @@ export function SearchView() {
   const activeFilterCount = [
     searchFilters.category !== 'all',
     searchFilters.kind !== 'all',
-    searchFilters.locality !== 'all',
-    searchFilters.neighborhood !== 'all',
     searchFilters.status !== 'available',
     searchFilters.condition !== 'all',
     searchFilters.delivery !== 'all',
@@ -292,22 +282,14 @@ export function SearchView() {
                       <CategoryChip key={item} label={item === 'all' ? 'Todas' : postCategoryLabel[item]} selected={searchFilters.category === item} onPress={() => updateSearchFilters({ category: item })} />
                     ))}
                   </FilterGroup>
+                  <FilterGroup title="Ubicación aproximada">
+                    <Button mode="outlined" icon="map-marker-radius-outline" onPress={() => setLocationDialog(true)}>
+                      Seleccionar en el mapa
+                    </Button>
+                  </FilterGroup>
                   <FilterGroup title="Radio de búsqueda">
                     {radii.map(radius => (
                       <CategoryChip key={radius} label={`${radius} km`} selected={searchFilters.radiusKm === radius} onPress={() => updateSearchFilters({ radiusKm: radius })} />
-                    ))}
-                  </FilterGroup>
-                  <Button mode="outlined" icon="map-marker-radius-outline" onPress={() => setLocationDialog(true)}>
-                    Cambiar punto de búsqueda
-                  </Button>
-                  <FilterGroup title="Localidad">
-                    {localities.map(item => (
-                      <CategoryChip key={item} label={item === 'all' ? 'Todas' : item} selected={searchFilters.locality === item} onPress={() => updateSearchFilters({ locality: item })} />
-                    ))}
-                  </FilterGroup>
-                  <FilterGroup title="Barrio">
-                    {neighborhoods.map(item => (
-                      <CategoryChip key={item} label={item === 'all' ? 'Todos' : item} selected={searchFilters.neighborhood === item} onPress={() => updateSearchFilters({ neighborhood: item })} />
                     ))}
                   </FilterGroup>
                   <FilterGroup title="Disponibilidad">
@@ -391,13 +373,13 @@ export function SearchView() {
 
       <Portal>
         <Dialog visible={locationDialog} onDismiss={() => setLocationDialog(false)} style={styles.locationDialog}>
-          <Dialog.Title>Punto de búsqueda</Dialog.Title>
+          <Dialog.Title>Ubicación aproximada</Dialog.Title>
           <Dialog.ScrollArea style={styles.dialogScrollArea}>
             <ScrollView contentContainerStyle={styles.dialogContent}>
               <LocationPicker
-                value={{ ...searchFilters.center, locality: searchFilters.locality === 'all' ? 'Neuquén capital' : searchFilters.locality }}
+                value={{ ...searchFilters.center, locality: 'Neuquén capital' }}
                 onChange={location => {
-                  updateSearchFilters({ center: { label: location.locality, latitude: location.latitude, longitude: location.longitude } });
+                  updateSearchFilters({ center: { label: 'Ubicación aproximada', latitude: location.latitude, longitude: location.longitude } });
                   setLocationDialog(false);
                 }}
               />
