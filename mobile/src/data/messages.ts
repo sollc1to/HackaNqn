@@ -19,6 +19,8 @@ export type MessageThread = {
   id: string;
   postId: string;
   participantId: string;
+  participantName?: string;
+  participantAvatarUrl?: string;
   preview: string;
   updatedAt: string;
   lastSeenAt: string;

@@ -26,6 +26,7 @@ export type AppAuthor = {
   reviews: UserReview[];
   email?: string;
   phone?: string;
+  avatarUrl?: string;
 };
 
 export const appAuthors: AppAuthor[] = [];

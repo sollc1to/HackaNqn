@@ -138,13 +138,13 @@ export function PostDetailView() {
     }
   };
 
-  const openConversation = () => {
+  const openConversation = async () => {
     if (contactDisabled) return;
     if (mine) {
       router.push('/messages-by-post');
       return;
     }
-    const threadId = ensureThreadForPost(post);
+    const threadId = await ensureThreadForPost(post);
     router.push({ pathname: '/conversation/[threadId]', params: { threadId } });
   };
 

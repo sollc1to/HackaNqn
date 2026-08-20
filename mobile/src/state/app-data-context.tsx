@@ -12,10 +12,15 @@ import {
 } from '@/data/posts';
 import {
   backendUserToAuthor,
+  fetchBackendChatById,
+  fetchBackendChats,
   fetchBackendPosts,
   fetchCurrentBackendUser,
   mergeAuthorsWithPosts,
   normalizeBackendPost,
+  normalizeBackendChat,
+  sendBackendChatMessage,
+  startBackendChatForPost,
 } from '@/lib/backend-api';
 import { clearStoredAuthSession, getStoredAuthToken, getStoredAuthUser } from '@/lib/auth-storage';
 
@@ -128,9 +133,9 @@ type AppDataContextValue = {
   isPostSaved: (postId: string) => boolean;
   showInterest: (postId: string) => void;
   report: (report: Omit<AppReport, 'id' | 'createdAt' | 'status'>) => void;
-  markThreadRead: (threadId: string) => void;
-  ensureThreadForPost: (post: AppPost) => string;
-  sendMessage: (threadId: string, text: string, attachment?: MessageAttachment) => void;
+  markThreadRead: (threadId: string) => Promise<void>;
+  ensureThreadForPost: (post: AppPost) => Promise<string>;
+  sendMessage: (threadId: string, text: string, attachment?: MessageAttachment) => Promise<void>;
   archiveThread: (threadId: string) => void;
   blockThread: (threadId: string) => void;
   updateSearchFilters: (updates: Partial<SearchFilters>) => void;
@@ -159,6 +164,12 @@ function mergeSessionAuthor(authors: AppAuthor[], sessionAuthor: AppAuthor) {
   return [sessionAuthor, ...authors.filter(author => author.id !== sessionAuthor.id)];
 }
 
+function upsertThread(threads: MessageThread[], nextThread: MessageThread) {
+  return [nextThread, ...threads.filter(thread => thread.id !== nextThread.id)].sort(
+    (first, second) => new Date(second.updatedAt).getTime() - new Date(first.updatedAt).getTime(),
+  );
+}
+
 export function AppDataProvider({ children }: { children: ReactNode }) {
   const [posts, setPosts] = useState<AppPost[]>([]);
   const [authors, setAuthors] = useState<AppAuthor[]>([]);
@@ -183,6 +194,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       setDataError('');
 
       let persistedState: Partial<PersistedState> | undefined;
+      let sessionAuthorId = '';
+      let token: string | undefined;
 
       try {
         const raw = getBrowserStorage()?.getItem(storageKey);
@@ -207,7 +220,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const token = await getStoredAuthToken();
+        token = await getStoredAuthToken();
         const storedUser = await getStoredAuthUser();
         const backendUser = token ? await fetchCurrentBackendUser(token).catch(() => undefined) : undefined;
         const sessionUser = backendUser ?? storedUser;
@@ -216,11 +229,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
         if (sessionUser) {
           const sessionAuthor = backendUserToAuthor(sessionUser);
+          sessionAuthorId = sessionAuthor.id;
           setCurrentUserId(sessionAuthor.id);
           setAuthors(current => mergeSessionAuthor(current.length ? current : persistedState?.authors ?? [], sessionAuthor));
         }
 
         const remotePosts = await fetchBackendPosts().catch(() => undefined);
+        const remoteChats = token ? await fetchBackendChats(token).catch(() => null) : null;
 
         if (!active) return;
 
@@ -235,6 +250,12 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           setDataError('');
         } else if (!persistedState?.posts?.length) {
           setPosts([]);
+        }
+
+        if (remoteChats) {
+          setThreads(remoteChats.map(chat => normalizeBackendChat(chat, sessionAuthorId || currentUserId)));
+        } else if (!persistedState?.threads?.length) {
+          setThreads([]);
         }
       } catch {
         if (!active) return;
@@ -325,19 +346,43 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
             status: 'received',
           },
         ]),
-      markThreadRead: threadId =>
+      markThreadRead: async threadId => {
+        const token = await getStoredAuthToken();
+        if (token) {
+          const backendThread = await fetchBackendChatById(threadId, token).catch(() => undefined);
+          if (backendThread) {
+            const normalized = normalizeBackendChat(backendThread, currentUserId);
+            setThreads(current => upsertThread(current, normalized));
+            return;
+          }
+        }
+
         setThreads(current => {
           const target = current.find(thread => thread.id === threadId);
           if (!target || target.unreadCount === 0) return current;
           return current.map(thread => (thread.id === threadId ? { ...thread, unreadCount: 0 } : thread));
-        }),
-      ensureThreadForPost: post => {
+        });
+      },
+      ensureThreadForPost: async post => {
         const existing = threads.find(thread => thread.postId === post.id);
-        if (existing) return existing.id;
-        const id = post.id;
-        setThreads(current => [
-          {
-            id,
+        if (existing) {
+          return existing.id;
+        }
+
+        const token = await getStoredAuthToken();
+        if (token) {
+          const backendThread = await startBackendChatForPost(post.id, token).catch(() => undefined);
+          if (backendThread) {
+            const normalized = normalizeBackendChat(backendThread, currentUserId);
+            setThreads(current => upsertThread(current, normalized));
+            return normalized.id;
+          }
+        }
+
+        const fallbackId = post.id;
+        setThreads(current =>
+          upsertThread(current, {
+            id: fallbackId,
             postId: post.id,
             participantId: post.authorId,
             preview: 'Nueva conversación',
@@ -349,17 +394,29 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
             reported: false,
             exchangeStatus: 'coordinating',
             messages: [],
-          },
-          ...current,
-        ]);
-        return id;
+          }),
+        );
+        return fallbackId;
       },
-      sendMessage: (threadId, text, attachment) => {
+      sendMessage: async (threadId, text, attachment) => {
+        const messageText = text.trim();
+        const fallbackText = messageText || (attachment?.type === 'image' ? 'Imagen adjunta' : 'Ubicación aproximada adjunta');
+        const token = await getStoredAuthToken();
+
+        if (token) {
+          const backendThread = await sendBackendChatMessage(threadId, fallbackText, token).catch(() => undefined);
+          if (backendThread) {
+            const normalized = normalizeBackendChat(backendThread, currentUserId);
+            setThreads(current => upsertThread(current, normalized));
+            return;
+          }
+        }
+
         const now = new Date().toISOString();
         const message: ChatMessage = {
           id: `message-${Date.now()}`,
           sender: 'me',
-          text,
+          text: fallbackText,
           createdAt: now,
           status: 'sent',
           attachment,
@@ -367,55 +424,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         setThreads(current =>
           current.map(thread =>
             thread.id === threadId
-              ? { ...thread, preview: text || 'Adjunto', updatedAt: now, messages: [...thread.messages, message] }
+              ? { ...thread, preview: fallbackText, updatedAt: now, messages: [...thread.messages, message] }
               : thread,
           ),
         );
-        setTimeout(() => {
-          setThreads(current =>
-            current.map(thread =>
-              thread.id === threadId
-                ? {
-                    ...thread,
-                    messages: thread.messages.map(item =>
-                      item.id === message.id ? { ...item, status: 'delivered' as const } : item,
-                    ),
-                  }
-                : thread,
-            ),
-          );
-        }, 450);
-        setTimeout(() => {
-          setThreads(current =>
-            current.map(thread => {
-              if (thread.id !== threadId || thread.blocked) return thread;
-              const replyOptions = [
-                '¡Hola! Sí, podemos coordinar por acá. ¿Qué día y horario te queda cómodo?',
-                'Perfecto, gracias por escribir. Decime cuándo podrías acercarte y coordinamos.',
-                '¡Buenísimo! Sigue disponible. Podemos acordar el punto de encuentro por acá.',
-              ];
-              const replyText = replyOptions[thread.messages.length % replyOptions.length];
-              const reply: ChatMessage = {
-                id: `reply-${Date.now()}`,
-                sender: 'them',
-                text: replyText,
-                createdAt: new Date().toISOString(),
-                status: 'read',
-              };
-              return {
-                ...thread,
-                preview: reply.text,
-                updatedAt: reply.createdAt,
-                messages: [
-                  ...thread.messages.map(item =>
-                    item.id === message.id ? { ...item, status: 'read' as const } : item,
-                  ),
-                  reply,
-                ],
-              };
-            }),
-          );
-        }, 1100);
       },
       archiveThread: threadId =>
         setThreads(current => current.map(thread => (thread.id === threadId ? { ...thread, archived: !thread.archived } : thread))),

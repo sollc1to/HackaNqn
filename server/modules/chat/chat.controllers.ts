@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 
 import type { AuthenticatedRequest } from '../user/user.middleware';
+import { UserRepository } from '../user/user.repository';
 import { PostRepository } from '../post/post.repository';
 import { ChatRepository } from './chat.repository';
 import type { SendChatMessageDTO, StartChatDTO } from './chat.interfaces';
@@ -16,14 +17,24 @@ function getUnreadCount(thread: { messages: Array<{ senderId: string; readBy: st
   return thread.messages.filter(message => message.senderId !== userId && !message.readBy.includes(userId)).length;
 }
 
-// arma un resumen liviano para la lista de chats.
-function toThreadSummary(thread: any, userId: string) {
+async function getCounterpartProfile(thread: { authorId: string; interestedUserId: string }, userId: string) {
   const counterpartId = thread.authorId === userId ? thread.interestedUserId : thread.authorId;
+  const counterpart = await UserRepository.findById(counterpartId).catch(() => null);
 
+  return {
+    counterpartId,
+    counterpartName: counterpart ? `${counterpart.name} ${counterpart.lastName}`.trim() : undefined,
+    counterpartAvatarUrl: counterpart?.avatarUrl || undefined,
+  };
+}
+
+// arma un resumen liviano para la lista de chats.
+async function toThreadSummary(thread: any, userId: string) {
+  const counterpart = await getCounterpartProfile(thread, userId);
   return {
     id: thread.id,
     postId: thread.postId,
-    counterpartId,
+    ...counterpart,
     participantIds: thread.participantIds,
     lastMessage: thread.lastMessage,
     lastMessageAt: thread.lastMessageAt,
@@ -113,11 +124,12 @@ export async function listMyChats(req: AuthenticatedRequest, res: Response) {
 
     // consulta los hilos donde participa el usuario.
     const threads = await ChatRepository.listByUser(authUserId);
+    const chats = await Promise.all(threads.map(thread => toThreadSummary(thread.toJSON(), authUserId)));
 
     // devuelve un resumen por hilo.
     return res.status(200).json({
       msg: 'chats retrieved successfully',
-      chats: threads.map(thread => toThreadSummary(thread.toJSON(), authUserId)),
+      chats,
     });
   } catch (error) {
     console.error(error);
@@ -151,11 +163,15 @@ export async function getChatById(req: AuthenticatedRequest & Request<{ chatId: 
 
     // marca el hilo como leido para ese usuario.
     const updatedThread = await ChatRepository.markAsRead(thread.id, authUserId);
+    const counterpart = await getCounterpartProfile((updatedThread ?? thread).toJSON(), authUserId);
 
     // devuelve el hilo completo.
     return res.status(200).json({
       msg: 'chat retrieved successfully',
-      chat: updatedThread?.toJSON() ?? thread.toJSON(),
+      chat: {
+        ...(updatedThread?.toJSON() ?? thread.toJSON()),
+        ...counterpart,
+      },
     });
   } catch (error) {
     console.error(error);

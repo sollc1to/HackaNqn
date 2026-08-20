@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 
 import type { AppAuthor } from '@/data/authors';
+import { type ChatMessage, type MessageThread } from '@/data/messages';
 import {
   type AppPost,
   type ArticleCondition,
@@ -54,6 +55,31 @@ export type BackendPost = {
   createdAt?: string;
   updatedAt?: string;
   distanceKm?: number;
+};
+
+export type BackendChatMessage = {
+  senderId: string;
+  text: string;
+  createdAt: string;
+  readBy: string[];
+};
+
+export type BackendChat = {
+  id: string;
+  postId: string;
+  authorId: string;
+  interestedUserId: string;
+  participantIds: [string, string];
+  messages: BackendChatMessage[];
+  lastMessage?: string;
+  lastMessageAt?: string;
+  status: 'active' | 'closed';
+  createdAt?: string;
+  updatedAt?: string;
+  counterpartId?: string;
+  counterpartName?: string;
+  counterpartAvatarUrl?: string;
+  unreadCount?: number;
 };
 
 export type BackendUser = {
@@ -244,6 +270,42 @@ function buildPostImages(images: BackendPostImage[]): PostImage[] {
   }));
 }
 
+function backendStatusToExchangeStatus(status: BackendChat['status']) {
+  return status === 'closed' ? 'completed' : 'coordinating';
+}
+
+function normalizeChatMessage(message: BackendChatMessage, currentUserId: string): ChatMessage {
+  return {
+    id: `${message.senderId}-${message.createdAt}`,
+    sender: message.senderId === currentUserId ? 'me' : 'them',
+    text: message.text,
+    createdAt: message.createdAt,
+    status: message.senderId === currentUserId ? 'read' : 'read',
+  };
+}
+
+export function normalizeBackendChat(thread: BackendChat, currentUserId: string): MessageThread {
+  const counterpartId = thread.counterpartId ?? (thread.authorId === currentUserId ? thread.interestedUserId : thread.authorId);
+  const messages = Array.isArray(thread.messages) ? thread.messages.map(message => normalizeChatMessage(message, currentUserId)) : [];
+
+  return {
+    id: thread.id,
+    postId: thread.postId,
+    participantId: counterpartId,
+    participantName: thread.counterpartName,
+    participantAvatarUrl: thread.counterpartAvatarUrl,
+    preview: thread.lastMessage ?? messages.at(-1)?.text ?? 'Nueva conversación',
+    updatedAt: thread.updatedAt ?? thread.lastMessageAt ?? thread.createdAt ?? new Date().toISOString(),
+    lastSeenAt: thread.updatedAt ?? thread.lastMessageAt ?? thread.createdAt ?? new Date().toISOString(),
+    unreadCount: thread.unreadCount ?? 0,
+    archived: false,
+    blocked: thread.status === 'closed',
+    reported: false,
+    exchangeStatus: backendStatusToExchangeStatus(thread.status),
+    messages,
+  };
+}
+
 export function normalizeBackendPost(post: BackendPost): AppPost {
   return {
     id: post.id,
@@ -336,6 +398,44 @@ export function backendUserToAuthor(user: BackendUser): AppAuthor {
 export async function fetchBackendPosts(query?: Record<string, string | number | undefined>) {
   const response = await requestJson<{ msg: string; posts: BackendPost[] }>('/api/posts', { method: 'GET' }, query);
   return Array.isArray(response.posts) ? response.posts : [];
+}
+
+export async function fetchBackendChats(token?: string) {
+  if (!token) throw new Error('missing token');
+  const response = await requestJson<{ msg: string; chats: BackendChat[] }>('/api/chats', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return Array.isArray(response.chats) ? response.chats : [];
+}
+
+export async function fetchBackendChatById(chatId: string, token?: string) {
+  if (!token) throw new Error('missing token');
+  const response = await requestJson<{ msg: string; chat: BackendChat }>(`/api/chats/${chatId}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return response.chat;
+}
+
+export async function startBackendChatForPost(postId: string, token?: string, initialMessage?: string) {
+  if (!token) throw new Error('missing token');
+  const response = await requestJson<{ msg: string; chat: BackendChat }>(`/api/chats/posts/${postId}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: initialMessage?.trim() ? { initialMessage } : {},
+  });
+  return response.chat;
+}
+
+export async function sendBackendChatMessage(chatId: string, text: string, token?: string) {
+  if (!token) throw new Error('missing token');
+  const response = await requestJson<{ msg: string; chat: BackendChat }>(`/api/chats/${chatId}/messages`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: { text },
+  });
+  return response.chat;
 }
 
 export async function fetchBackendPostById(postId: string) {

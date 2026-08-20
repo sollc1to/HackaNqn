@@ -6,15 +6,45 @@ import { Badge, Button, Surface, Text, TextInput, TouchableRipple, useTheme } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBottomNav, AuthorAvatar, CategoryChip, SkeletonPostCard } from '@/components';
+import { type AppAuthor } from '@/data/authors';
 import { type MessageThread } from '@/data/messages';
 import { formatRelativeDate } from '@/utils/date';
 import { fuzzyIncludes } from '@/utils/text';
 import { useAppData } from '@/state/app-data-context';
 
+function buildFallbackAuthor(thread: MessageThread): AppAuthor | undefined {
+  if (!thread.participantName) return undefined;
+  const initials = thread.participantName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part[0]?.toUpperCase() ?? '')
+    .join('')
+    .slice(0, 2) || 'NA';
+
+  return {
+    id: thread.participantId,
+    name: thread.participantName,
+    initials,
+    accountType: 'person',
+    bio: '',
+    location: 'Neuquén',
+    memberSince: new Date().toISOString(),
+    completedExchanges: 0,
+    verified: false,
+    identityConfirmed: false,
+    verificationStatus: 'not-requested',
+    rating: 0,
+    reviewCount: 0,
+    reviews: [],
+    imageUri: thread.participantAvatarUrl,
+  };
+}
+
 function ThreadItem({ thread, onPress }: { thread: MessageThread; onPress: () => void }) {
   const theme = useTheme();
   const { authors, posts } = useAppData();
-  const participant = authors.find(author => author.id === thread.participantId);
+  const participant = authors.find(author => author.id === thread.participantId) ?? buildFallbackAuthor(thread);
   const post = posts.find(item => item.id === thread.postId);
 
   return (

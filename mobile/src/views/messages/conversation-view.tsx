@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthorAvatar, LocationPicker, SmartImage } from '@/components';
+import { type AppAuthor } from '@/data/authors';
 import { type ChatMessage, type MessageAttachment } from '@/data/messages';
 import { getPostImageSource, postStatusLabel, type PostLocation } from '@/data/posts';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
@@ -24,6 +25,39 @@ import { formatConversationDay, formatTime, sameCalendarDay } from '@/utils/date
 import { getPickImageErrorMessage, pickImages } from '@/utils/pick-image';
 
 const statusIcon = { sent: 'check', delivered: 'check-all', read: 'check-all' } as const;
+
+function buildFallbackAuthor(thread?: {
+  participantId: string;
+  participantName?: string;
+  participantAvatarUrl?: string;
+}) {
+  if (!thread?.participantName) return undefined;
+  const initials = thread.participantName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part[0]?.toUpperCase() ?? '')
+    .join('')
+    .slice(0, 2) || 'NA';
+
+  return {
+    id: thread.participantId,
+    name: thread.participantName,
+    initials,
+    accountType: 'person',
+    bio: '',
+    location: 'Neuquén',
+    memberSince: new Date().toISOString(),
+    completedExchanges: 0,
+    verified: false,
+    identityConfirmed: false,
+    verificationStatus: 'not-requested',
+    rating: 0,
+    reviewCount: 0,
+    reviews: [],
+    imageUri: thread.participantAvatarUrl,
+  } satisfies AppAuthor;
+}
 
 export function ConversationView() {
   const router = useRouter();
@@ -44,7 +78,7 @@ export function ConversationView() {
   const listRef = useRef<FlatList<ChatMessage>>(null);
   const thread = threads.find(candidate => candidate.id === threadId);
   const post = posts.find(item => item.id === thread?.postId);
-  const participant = authors.find(author => author.id === thread?.participantId);
+  const participant = authors.find(author => author.id === thread?.participantId) ?? buildFallbackAuthor(thread);
   const [draft, setDraft] = useState('');
   const [pendingAttachment, setPendingAttachment] = useState<MessageAttachment>();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -52,10 +86,31 @@ export function ConversationView() {
   const [locationOpen, setLocationOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [feedback, setFeedback] = useState('');
+  const [isLoadingThread, setIsLoadingThread] = useState(Boolean(threadId));
 
   useEffect(() => {
-    if (threadId) markThreadRead(threadId);
-  }, [markThreadRead, threadId]);
+    let active = true;
+
+    const hydrateThread = async () => {
+      if (!threadId) {
+        setIsLoadingThread(false);
+        return;
+      }
+
+      setIsLoadingThread(true);
+      try {
+        await markThreadRead(threadId);
+      } finally {
+        if (active) setIsLoadingThread(false);
+      }
+    };
+
+    void hydrateThread();
+
+    return () => {
+      active = false;
+    };
+  }, [threadId]);
 
   const closed = !post || post.status === 'completed' || post.status === 'paused' || thread?.blocked;
   const messages = thread?.messages ?? [];
@@ -67,13 +122,17 @@ export function ConversationView() {
     return 'Coordinando intercambio';
   }, [post?.status, thread?.blocked, thread?.exchangeStatus]);
 
-  const submitMessage = () => {
+  const submitMessage = async () => {
     const text = draft.trim();
     if ((!text && !pendingAttachment) || !threadId || closed) return;
-    sendMessage(threadId, text || (pendingAttachment?.type === 'image' ? 'Imagen adjunta' : 'Ubicación aproximada adjunta'), pendingAttachment);
-    setDraft('');
-    setPendingAttachment(undefined);
-    setFeedback('Mensaje enviado.');
+    try {
+      await sendMessage(threadId, text || (pendingAttachment?.type === 'image' ? 'Imagen adjunta' : 'Ubicación aproximada adjunta'), pendingAttachment);
+      setDraft('');
+      setPendingAttachment(undefined);
+      setFeedback('Mensaje enviado.');
+    } catch {
+      setFeedback('No pudimos enviar el mensaje.');
+    }
   };
 
   const attachImage = async (source: 'camera' | 'library') => {
@@ -85,6 +144,16 @@ export function ConversationView() {
       setFeedback(getPickImageErrorMessage(error));
     }
   };
+
+  if (isLoadingThread) {
+    return (
+      <SafeAreaView style={[styles.missingRoot, { backgroundColor: theme.colors.background }]}>
+        <MaterialCommunityIcons name="progress-clock" size={48} color={theme.colors.onSurfaceVariant} />
+        <Text variant="titleLarge" style={{ color: theme.colors.onSurface, fontWeight: '800' }}>Cargando conversación</Text>
+        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>Estamos trayendo el chat desde el servidor.</Text>
+      </SafeAreaView>
+    );
+  }
 
   if (!threadId || !thread || !post) {
     return (
