@@ -17,6 +17,7 @@ import {
   type PostStatus,
 } from '@/data/posts';
 import { fetchBackendPosts, mergeAuthorsWithPosts, normalizeBackendPost } from '@/lib/backend-api';
+import { clearStoredAuthSession } from '@/lib/auth-storage';
 
 export type SearchRadius = 2 | 5 | 10 | 20;
 export type SearchViewMode = 'list' | 'map';
@@ -431,8 +432,12 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           ),
         ),
       updatePreferences: updates => setPreferences(current => ({ ...current, ...updates })),
-      signOut: () => setSessionActive(false),
+      signOut: () => {
+        clearStoredAuthSession();
+        setSessionActive(false);
+      },
       deleteAccount: () => {
+        clearStoredAuthSession();
         setPosts(current => current.filter(post => post.ownerId !== 'current-user'));
         setSessionActive(false);
       },

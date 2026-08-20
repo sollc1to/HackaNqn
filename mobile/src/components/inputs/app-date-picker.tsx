@@ -11,13 +11,22 @@ type AppDatePickerProps = {
   error?: boolean;
   helperText?: string;
   minimumDate?: Date;
+  maximumDate?: Date;
 };
 
 const weekDays = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
-export function AppDatePicker({ label, value, onChange, error, helperText, minimumDate = new Date() }: AppDatePickerProps) {
+export function AppDatePicker({
+  label,
+  value,
+  onChange,
+  error,
+  helperText,
+  minimumDate = new Date(),
+  maximumDate,
+}: AppDatePickerProps) {
   const theme = useTheme();
-  const initial = value ? new Date(value) : minimumDate;
+  const initial = value ? new Date(value) : maximumDate ?? minimumDate;
   const [visible, setVisible] = useState(false);
   const [month, setMonth] = useState(new Date(initial.getFullYear(), initial.getMonth(), 1));
 
@@ -29,6 +38,7 @@ export function AppDatePicker({ label, value, onChange, error, helperText, minim
 
   const selectedKey = value ? new Date(value).toDateString() : '';
   const min = new Date(minimumDate.getFullYear(), minimumDate.getMonth(), minimumDate.getDate());
+  const max = maximumDate ? new Date(maximumDate.getFullYear(), maximumDate.getMonth(), maximumDate.getDate()) : undefined;
 
   return (
     <>
@@ -82,7 +92,7 @@ export function AppDatePicker({ label, value, onChange, error, helperText, minim
               {days.map((day, index) => {
                 if (!day) return <View key={`empty-${index}`} style={styles.dayCell} />;
                 const date = new Date(month.getFullYear(), month.getMonth(), day);
-                const disabled = date < min;
+                const disabled = date < min || (max ? date > max : false);
                 const selected = date.toDateString() === selectedKey;
                 return (
                   <TouchableRipple

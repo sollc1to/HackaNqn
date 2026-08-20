@@ -75,6 +75,11 @@ export type BackendAuthResponse = {
   token: string;
 };
 
+export type BackendProfileResponse = {
+  msg: string;
+  user: BackendUser;
+};
+
 export type LoginInput = {
   email: string;
   password: string;
@@ -241,6 +246,34 @@ export function mergeAuthorsWithPosts(authors: AppAuthor[], posts: AppPost[]) {
   return [...authors, ...missingAuthors];
 }
 
+export function backendUserToAuthor(user: BackendUser): AppAuthor {
+  const name = `${user.name} ${user.lastName}`.trim();
+  const initials = [user.name, user.lastName]
+    .map(part => part.trim()[0]?.toUpperCase() ?? '')
+    .join('')
+    .slice(0, 2) || 'NU';
+
+  return {
+    id: user.id,
+    name: name || 'Usuario',
+    initials,
+    imageUri: user.avatarUrl || undefined,
+    accountType: user.role === 'organizacion' ? 'organization' : 'person',
+    bio: 'Perfil sincronizado desde el backend.',
+    location: user.address,
+    memberSince: user.createdAt ?? user.birthDate,
+    completedExchanges: 0,
+    verified: user.role === 'administrador',
+    identityConfirmed: Boolean(user.isActive),
+    verificationStatus: user.role === 'administrador' ? 'verified' : 'not-requested',
+    rating: 0,
+    reviewCount: 0,
+    reviews: [],
+    email: user.email,
+    phone: user.phone,
+  };
+}
+
 export async function fetchBackendPosts(query?: Record<string, string | number | undefined>) {
   const response = await requestJson<{ msg: string; posts: BackendPost[] }>('/api/posts', { method: 'GET' }, query);
   return Array.isArray(response.posts) ? response.posts : [];
@@ -249,6 +282,15 @@ export async function fetchBackendPosts(query?: Record<string, string | number |
 export async function fetchBackendPostById(postId: string) {
   const response = await requestJson<{ msg: string; post: BackendPost }>(`/api/posts/${postId}`, { method: 'GET' });
   return response.post;
+}
+
+export async function fetchCurrentBackendUser(token?: string) {
+  if (!token) throw new Error('missing token');
+  const response = await requestJson<BackendProfileResponse>('/api/auth/me', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return response.user;
 }
 
 export async function loginWithBackend(input: LoginInput) {

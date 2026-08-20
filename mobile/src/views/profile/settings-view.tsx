@@ -5,19 +5,35 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Dialog, Portal, Surface, Switch, Text, TouchableRipple, useTheme } from 'react-native-paper';
 
 import { AppHeader, AppScreen, SegmentedControl } from '@/components';
-import { currentUserId, type AccountType } from '@/data/authors';
 import { useAppData } from '@/state/app-data-context';
+import { useCurrentUserProfile } from '@/hooks/use-current-user-profile';
+import type { AccountType } from '@/data/authors';
 
 export function SettingsView() {
   const router = useRouter();
   const theme = useTheme();
-  const { authors, preferences, updatePreferences, updateProfile, requestVerification, signOut, deleteAccount } = useAppData();
-  const profile = authors.find(author => author.id === currentUserId)!;
+  const { preferences, updatePreferences, updateProfile, requestVerification, signOut, deleteAccount } = useAppData();
+  const { profile, isLoading, error: profileError } = useCurrentUserProfile();
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  if (isLoading) {
+    return (
+      <AppScreen contentStyle={styles.content}>
+        <AppHeader title="Configuración" onBackPress={() => router.back()} />
+        <Text style={{ color: theme.colors.onSurfaceVariant, paddingHorizontal: 16 }}>Cargando configuración del perfil...</Text>
+      </AppScreen>
+    );
+  }
 
   return (
     <AppScreen contentStyle={styles.content}>
       <AppHeader title="Configuración" onBackPress={() => router.back()} />
+
+      {profileError ? (
+        <Surface elevation={0} style={[styles.section, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }]}>
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurface }}>{profileError}</Text>
+        </Surface>
+      ) : null}
 
       <SettingsSection title="Tipo de cuenta" icon="account-switch-outline">
         <SegmentedControl

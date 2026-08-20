@@ -3,6 +3,7 @@ import { validationResult } from 'express-validator';
 import { compare, genSalt, hash } from 'bcrypt';
 
 import { signUserToken } from './user.auth';
+import type { AuthenticatedRequest } from './user.middleware';
 import { UserRepository } from './user.repository';
 import type { LoginDTO, RegisterUserDTO } from './user.dto';
 
@@ -127,6 +128,31 @@ export async function loginUser(req: Request<{}, {}, LoginDTO>, res: Response) {
       msg: 'login successful',
       user: getSafeUser(user),
       token,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ msg: 'internal server error' });
+  }
+}
+
+// devuelve el perfil del usuario autenticado.
+export async function getMyProfile(req: AuthenticatedRequest, res: Response) {
+  try {
+    const userId = req.auth?.sub;
+
+    if (!userId) {
+      return res.status(401).json({ msg: 'missing token' });
+    }
+
+    const user = await UserRepository.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ msg: 'user not found' });
+    }
+
+    return res.status(200).json({
+      msg: 'profile retrieved successfully',
+      user: getSafeUser(user),
     });
   } catch (error) {
     console.error(error);

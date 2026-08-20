@@ -18,6 +18,7 @@ import {
   SegmentedControl,
 } from '@/components';
 import { loginWithBackend, registerWithBackend } from '@/lib/backend-api';
+import { saveAuthSession } from '@/lib/auth-storage';
 
 type AuthMode = 'signin' | 'signup';
 type AccountType = 'person' | 'organization';
@@ -66,11 +67,6 @@ export function AuthView() {
   const clearMessage = () => setMessage('');
 
   const validateSignup = () => {
-    if (username.trim().length < 4) {
-      setMessage('El nombre de usuario debe tener al menos 4 caracteres.');
-      return false;
-    }
-
     if (accountType === 'person') {
       if (name.trim().length < 2) {
         setMessage('Ingresá tu nombre.');
@@ -179,10 +175,7 @@ export function AuthView() {
           password,
         });
 
-        if (rememberMe && typeof globalThis !== 'undefined' && 'localStorage' in globalThis) {
-          globalThis.localStorage.setItem('nexo-solidario-token', response.token);
-          globalThis.localStorage.setItem('nexo-solidario-user', JSON.stringify(response.user));
-        }
+        await saveAuthSession(response.token, response.user, rememberMe);
 
         setMessage('Sesión iniciada correctamente.');
         router.replace('/dashboard');
@@ -200,10 +193,7 @@ export function AuthView() {
         role: accountType === 'organization' ? 'organizacion' : 'normal',
       });
 
-      if (rememberMe && typeof globalThis !== 'undefined' && 'localStorage' in globalThis) {
-        globalThis.localStorage.setItem('nexo-solidario-token', response.token);
-        globalThis.localStorage.setItem('nexo-solidario-user', JSON.stringify(response.user));
-      }
+      await saveAuthSession(response.token, response.user, rememberMe);
 
       setMessage('Cuenta creada correctamente.');
       router.replace('/dashboard');
@@ -375,6 +365,8 @@ export function AuthView() {
                 <AppDatePicker
                   label="Fecha de nacimiento"
                   value={birthDate}
+                  maximumDate={new Date()}
+                  minimumDate={new Date(1900, 0, 1)}
                   onChange={value => {
                     setBirthDate(value);
                     clearMessage();

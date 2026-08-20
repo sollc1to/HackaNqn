@@ -1,12 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Dialog, Portal, Surface, Text, TextInput, useTheme } from 'react-native-paper';
 
 import { AppHeader, AppScreen, AuthorAvatar, RatingStars } from '@/components';
-import { currentUserId } from '@/data/authors';
 import { useAppData } from '@/state/app-data-context';
+import { useCurrentUserProfile } from '@/hooks/use-current-user-profile';
 import { formatDate } from '@/utils/date';
 import { getPickImageErrorMessage, pickImages } from '@/utils/pick-image';
 
@@ -15,8 +15,8 @@ type Errors = Partial<Record<'name' | 'email' | 'phone' | 'location', string>>;
 export function PersonalDataView() {
   const router = useRouter();
   const theme = useTheme();
-  const { authors, updateProfile, savedPosts } = useAppData();
-  const profile = authors.find(author => author.id === currentUserId)!;
+  const { updateProfile, savedPosts } = useAppData();
+  const { profile, isLoading, error: profileError } = useCurrentUserProfile();
   const [name, setName] = useState(profile.name);
   const [email, setEmail] = useState(profile.email ?? '');
   const [phone, setPhone] = useState(profile.phone ?? '');
@@ -24,6 +24,24 @@ export function PersonalDataView() {
   const [photoDialog, setPhotoDialog] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [status, setStatus] = useState('');
+
+  useEffect(() => {
+    setName(profile.name);
+    setEmail(profile.email ?? '');
+    setPhone(profile.phone ?? '');
+    setLocation(profile.location);
+  }, [profile]);
+
+  if (isLoading) {
+    return (
+      <AppScreen contentStyle={styles.content}>
+        <AppHeader title="Mi perfil" onBackPress={() => router.back()} rightIcon="cog-outline" onRightPress={() => router.push('/settings')} />
+        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, paddingHorizontal: 16 }}>
+          Cargando tu perfil desde el backend...
+        </Text>
+      </AppScreen>
+    );
+  }
 
   const update = () => {
     const next: Errors = {};
@@ -52,6 +70,12 @@ export function PersonalDataView() {
   return (
     <AppScreen contentStyle={styles.content}>
       <AppHeader title="Mi perfil" onBackPress={() => router.back()} rightIcon="cog-outline" onRightPress={() => router.push('/settings')} />
+
+      {profileError ? (
+        <Surface elevation={0} style={[styles.statusCard, { backgroundColor: theme.colors.surfaceVariant, marginHorizontal: 16 }]}>
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurface }}>{profileError}</Text>
+        </Surface>
+      ) : null}
 
       <View style={styles.hero}>
         <AuthorAvatar author={profile} size={94} />

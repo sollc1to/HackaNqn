@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
 
-import { loginUser, registerUser } from './user.controllers';
+import { getMyProfile, loginUser, registerUser } from './user.controllers';
+import { requireAuth } from './user.middleware';
 
 export const AuthRouter: Router = Router();
 
@@ -45,3 +46,6 @@ AuthRouter.post('/register', registerRules, registerUser);
 
 // valida credenciales y devuelve un token.
 AuthRouter.post('/login', loginRules, loginUser);
+
+// devuelve el perfil del usuario autenticado.
+AuthRouter.get('/me', requireAuth, getMyProfile);
