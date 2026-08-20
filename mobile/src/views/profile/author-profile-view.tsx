@@ -5,7 +5,6 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Dialog, Divider, Portal, Surface, Text, TextInput, useTheme } from 'react-native-paper';
 
 import { AppHeader, AppScreen, AuthorAvatar, PostCard, RatingStars } from '@/components';
-import { currentUserId } from '@/data/authors';
 import { formatDate } from '@/utils/date';
 import { useAppData } from '@/state/app-data-context';
 
@@ -14,7 +13,7 @@ export function AuthorProfileView() {
   const theme = useTheme();
   const params = useLocalSearchParams<{ authorId?: string | string[] }>();
   const authorId = Array.isArray(params.authorId) ? params.authorId[0] : params.authorId;
-  const { authors, posts, savedPostIds, toggleSavedPost, addReview, preferences, report } = useAppData();
+  const { authors, posts, savedPostIds, toggleSavedPost, addReview, preferences, report, currentUserId } = useAppData();
   const author = authors.find(candidate => candidate.id === authorId);
   const authorPosts = useMemo(() => posts.filter(post => post.authorId === authorId), [authorId, posts]);
   const [reviewOpen, setReviewOpen] = useState(false);

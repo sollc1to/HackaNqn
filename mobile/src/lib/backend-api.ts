@@ -1,8 +1,6 @@
 import { Platform } from 'react-native';
-import { fetch as expoFetch } from 'expo/fetch';
-import { File } from 'expo-file-system';
 
-import { appAuthors, currentUserId, type AppAuthor } from '@/data/authors';
+import type { AppAuthor } from '@/data/authors';
 import {
   type AppPost,
   type ArticleCondition,
@@ -159,9 +157,8 @@ async function appendImage(formData: FormData, image: BackendPostImageUpload, in
     return;
   }
 
-  const file = new File(image.uri);
-  // Expo fetch espera un File real, no el objeto { uri, name, type } de React Native.
-  formData.append('images', file);
+  // React Native entiende el formato { uri, name, type } en multipart.
+  formData.append('images', { uri: image.uri, name: fileName, type: mimeType } as any);
 }
 
 function buildUrl(path: string, query?: Record<string, string | number | undefined>) {
@@ -187,7 +184,7 @@ async function requestJson<T>(path: string, options: RequestOptions = {}, query?
 
   headers.set('Accept', 'application/json');
 
-  const response = await expoFetch(buildUrl(path, query), {
+  const response = await fetch(buildUrl(path, query), {
     ...options,
     headers,
     body:
@@ -348,7 +345,6 @@ export async function fetchBackendPostById(postId: string) {
 
 export async function createBackendPost(input: CreateBackendPostInput, token?: string) {
   if (!token) throw new Error('missing token');
-  if (!input.images.length) throw new Error('at least one image is required');
 
   const formData = new FormData();
   formData.append('title', input.title);
@@ -420,6 +416,3 @@ export async function loginWithBackend(input: LoginInput) {
 export async function registerWithBackend(input: RegisterInput) {
   return await requestJson<BackendAuthResponse>('/api/auth/register', { method: 'POST', body: input });
 }
-
-export const demoAuthors = appAuthors;
-export const demoCurrentUserId = currentUserId;

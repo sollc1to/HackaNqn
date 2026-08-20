@@ -16,11 +16,13 @@ export function SettingsView() {
   const { profile, isLoading, error: profileError } = useCurrentUserProfile();
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  if (isLoading) {
+  if (isLoading || !profile) {
     return (
       <AppScreen contentStyle={styles.content}>
       <AppHeader title="Configuración" onBackPress={() => router.back()} />
-      <Text style={{ color: theme.colors.onSurfaceVariant, paddingHorizontal: 16 }}>Cargando configuración del perfil...</Text>
+      <Text style={{ color: theme.colors.onSurfaceVariant, paddingHorizontal: 16 }}>
+        {isLoading ? 'Cargando configuración del perfil...' : 'No encontramos tu perfil de sesión.'}
+      </Text>
       </AppScreen>
     );
   }

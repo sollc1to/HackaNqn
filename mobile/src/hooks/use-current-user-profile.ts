@@ -1,24 +1,22 @@
 import { useEffect, useState } from 'react';
 
-import { appAuthors, currentUserId } from '@/data/authors';
 import { backendUserToAuthor, fetchCurrentBackendUser } from '@/lib/backend-api';
 import { getStoredAuthToken, getStoredAuthUser } from '@/lib/auth-storage';
-
 import type { AppAuthor } from '@/data/authors';
 
 type CurrentProfileState = {
-  profile: AppAuthor;
+  profile?: AppAuthor;
   isLoading: boolean;
   error: string;
-  source: 'backend' | 'stored-session' | 'mock';
+  source: 'backend' | 'stored-session' | 'empty';
 };
 
 export function useCurrentUserProfile(): CurrentProfileState {
   const [state, setState] = useState<CurrentProfileState>(() => ({
-    profile: appAuthors.find(author => author.id === currentUserId) ?? appAuthors[0],
+    profile: undefined,
     isLoading: true,
     error: '',
-    source: 'mock',
+    source: 'empty',
   }));
 
   useEffect(() => {
@@ -40,13 +38,12 @@ export function useCurrentUserProfile(): CurrentProfileState {
       }
 
       if (!token) {
-        const fallbackProfile = appAuthors.find(author => author.id === currentUserId) ?? appAuthors[0];
         if (!active) return;
         setState({
-          profile: fallbackProfile,
+          profile: undefined,
           isLoading: false,
-          error: '',
-          source: 'mock',
+          error: 'No hay una sesión iniciada.',
+          source: 'empty',
         });
         return;
       }
@@ -62,17 +59,13 @@ export function useCurrentUserProfile(): CurrentProfileState {
           source: 'backend',
         });
       } catch {
-        const fallbackProfile = storedUser
-          ? backendUserToAuthor(storedUser)
-          : appAuthors.find(author => author.id === currentUserId) ?? appAuthors[0];
-
         if (!active) return;
 
         setState({
-          profile: fallbackProfile,
+          profile: storedUser ? backendUserToAuthor(storedUser) : undefined,
           isLoading: false,
-          error: 'No pudimos sincronizar el perfil con el servidor. Mostramos la última versión disponible.',
-          source: storedUser ? 'stored-session' : 'mock',
+          error: storedUser ? 'No pudimos sincronizar el perfil con el servidor. Mostramos la última versión disponible.' : 'No pudimos sincronizar el perfil con el servidor.',
+          source: storedUser ? 'stored-session' : 'empty',
         });
       }
     };

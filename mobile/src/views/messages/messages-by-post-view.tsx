@@ -6,7 +6,6 @@ import { Badge, Button, Surface, Text, TextInput, TouchableRipple, useTheme } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBottomNav, AuthorAvatar, CategoryChip, SkeletonPostCard } from '@/components';
-import { currentUserId } from '@/data/authors';
 import { type MessageThread } from '@/data/messages';
 import { formatRelativeDate } from '@/utils/date';
 import { fuzzyIncludes } from '@/utils/text';
@@ -49,7 +48,7 @@ function ThreadItem({ thread, onPress }: { thread: MessageThread; onPress: () =>
 export function MessagesByPostView() {
   const router = useRouter();
   const theme = useTheme();
-  const { threads, authors, posts, isHydrating } = useAppData();
+  const { threads, authors, posts, isHydrating, currentUserId } = useAppData();
   const [query, setQuery] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const currentAuthor = authors.find(author => author.id === currentUserId);

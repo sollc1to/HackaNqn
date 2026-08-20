@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { type ComponentProps, useMemo, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { Share, ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Camera, Map, Marker } from '@maplibre/maplibre-react-native';
 import {
   Button,
   Dialog,
@@ -19,7 +20,6 @@ import {
 } from 'react-native-paper';
 
 import { AppHeader, AppScreen, AuthorAvatar, RatingStars, SmartImage } from '@/components';
-import { currentUserId } from '@/data/authors';
 import {
   conditionLabel,
   deliveryLabel,
@@ -52,6 +52,31 @@ function DetailItem({ icon, label, value }: { icon: string; label: string; value
   );
 }
 
+type MapStyle = Extract<ComponentProps<typeof Map>['mapStyle'], object>;
+
+const openStreetMapStyle: MapStyle = {
+  version: 8,
+  sources: {
+    openstreetmap: {
+      type: 'raster',
+      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      minzoom: 0,
+      maxzoom: 19,
+      attribution: '© OpenStreetMap contributors',
+    },
+  },
+  layers: [
+    {
+      id: 'openstreetmap',
+      type: 'raster',
+      source: 'openstreetmap',
+      minzoom: 0,
+      maxzoom: 19,
+    },
+  ],
+};
+
 export function PostDetailView() {
   const router = useRouter();
   const theme = useTheme();
@@ -66,6 +91,7 @@ export function PostDetailView() {
     report,
     updatePost,
     deletePost,
+    currentUserId,
   } = useAppData();
   const [selectedImage, setSelectedImage] = useState(0);
   const [imageOpen, setImageOpen] = useState(false);
@@ -94,7 +120,7 @@ export function PostDetailView() {
     );
   }
 
-  const mine = post.ownerId === 'current-user';
+  const mine = post.authorId === currentUserId;
   const saved = isPostSaved(post.id);
   const alreadyInterested = post.interestedUserIds.includes(currentUserId);
   const contactDisabled = post.status === 'completed' || post.status === 'paused';
@@ -237,11 +263,34 @@ export function PostDetailView() {
           <DetailItem icon="counter" label={post.kind === 'donation' ? 'Cantidad disponible' : 'Cantidad solicitada'} value={formatPostQuantity(post)} />
           {post.condition ? <DetailItem icon="star-check-outline" label="Condición" value={conditionLabel[post.condition]} /> : null}
           <DetailItem icon="truck-delivery-outline" label="Forma de entrega" value={deliveryLabel[post.delivery]} />
-          <DetailItem icon="calendar-clock-outline" label="Disponibilidad" value={post.availability} />
+          <DetailItem icon="calendar-clock-outline" label="Disponibilidad" value={post.availability || 'Sin disponibilidad informada'} />
           {post.deadline ? <DetailItem icon="calendar-alert" label="Fecha límite" value={formatDate(post.deadline)} /> : null}
           <DetailItem icon="map-marker-radius-outline" label="Punto aproximado" value={post.meetingPoint} />
           <DetailItem icon="account-heart-outline" label="Personas interesadas" value={`${post.interestedUserIds.length}`} />
         </View>
+      </Surface>
+
+      <Surface elevation={0} style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
+        <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Ubicación en el mapa</Text>
+        <View style={styles.mapContainer}>
+          <Map
+            style={StyleSheet.absoluteFill}
+            mapStyle={openStreetMapStyle}
+            androidView="texture"
+            attribution
+            logo={false}
+            compass>
+            <Camera initialViewState={{ center: [post.location.longitude, post.location.latitude], zoom: 13 }} minZoom={3} maxZoom={19} />
+            <Marker id="post-location" lngLat={[post.location.longitude, post.location.latitude]} anchor="bottom">
+              <View style={[styles.mapMarker, { backgroundColor: theme.colors.primary }]}>
+                <MaterialCommunityIcons name="map-marker" size={26} color="#FFFFFF" />
+              </View>
+            </Marker>
+          </Map>
+        </View>
+        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+          {post.location.label}
+        </Text>
       </Surface>
 
       <TouchableRipple
@@ -371,6 +420,8 @@ const styles = StyleSheet.create({
   sectionCard: { borderWidth: 1, borderRadius: 18, marginHorizontal: 16, padding: 16, gap: 14 },
   sectionTitle: { fontWeight: '800' },
   detailsGrid: { gap: 13 },
+  mapContainer: { height: 220, borderRadius: 18, overflow: 'hidden' },
+  mapMarker: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   detailItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   detailCopy: { flex: 1, gap: 2 },
   detailValue: { fontWeight: '600' },

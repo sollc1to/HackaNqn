@@ -17,7 +17,6 @@ import {
 } from 'react-native-paper';
 
 import { AppHeader, AppScreen, CategoryChip, SegmentedControl, SmartImage } from '@/components';
-import { currentUserId } from '@/data/authors';
 import {
   getPostImageSource,
   postCategoryLabel,
@@ -129,8 +128,8 @@ export function CreatePostView() {
   const reducedMotion = useReducedMotion();
   const params = useLocalSearchParams<{ postId?: string | string[] }>();
   const editPostId = Array.isArray(params.postId) ? params.postId[0] : params.postId;
-  const { posts, addPost, updatePost, postDraft, savePostDraft } = useAppData();
-  const editingPost = posts.find(post => post.id === editPostId && post.ownerId === 'current-user');
+  const { posts, addPost, updatePost, postDraft, savePostDraft, currentUserId } = useAppData();
+  const editingPost = posts.find(post => post.id === editPostId && post.authorId === currentUserId);
 
   const initial: PostDraft | undefined = editingPost
     ? {
@@ -276,7 +275,7 @@ export function CreatePostView() {
     if (!Number.isInteger(parsedQuantity) || parsedQuantity <= 0) next.quantity = 'Ingresá una cantidad numérica mayor que cero.';
     if (quantityUnit.trim().length < 2) next.quantityUnit = 'Indicá la unidad: cajas, bolsas, unidades, etc.';
     if (!location) next.location = 'Elegí una ubicación aproximada tocando el mapa.';
-    if (images.length === 0) next.images = 'Agregá al menos una fotografía del objeto.';
+    if (kind === 'donation' && images.length === 0) next.images = 'Agregá al menos una fotografía del objeto.';
     if (!safetyAccepted) next.safety = 'Confirmá que la publicación cumple las normas.';
     if (containsExactAddress(description)) next.description = 'Quitá la dirección exacta. Compartila únicamente por mensaje.';
     if (findProhibitedContent(`${title} ${description}`)) next.description = 'La descripción parece incluir un producto prohibido o regulado.';
@@ -321,7 +320,7 @@ export function CreatePostView() {
       meetingPoint: location.label,
       status: editingPost?.status ?? 'available',
       interestedUserIds: editingPost?.interestedUserIds ?? [],
-      ownerId: 'current-user',
+      ownerId: currentUserId,
     };
     try {
       if (editingPost && isBackendObjectId(editingPost.id)) {
@@ -447,7 +446,15 @@ export function CreatePostView() {
         <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>¿Qué querés publicar?</Text>
         <SegmentedControl
           value={kind}
-          onValueChange={value => { setKind(value as PostKind); clearError('duplicate'); }}
+          onValueChange={value => {
+            const nextKind = value as PostKind;
+            setKind(nextKind);
+            if (nextKind === 'request') {
+              setImages([]);
+              clearError('images');
+            }
+            clearError('duplicate');
+          }}
           options={[{ value: 'donation', label: 'Ofrezco una donación' }, { value: 'request', label: 'Necesito ayuda' }]}
         />
       </View>
@@ -577,32 +584,43 @@ export function CreatePostView() {
         </Text>
       </View>
 
-      <View style={styles.section}>
-        <View style={styles.sectionHeadingRow}>
-          <View style={{ flex: 1 }}>
-            <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Fotografías</Text>
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>Hasta 5 fotos claras y actuales del objeto</Text>
+      {kind === 'donation' ? (
+        <View style={styles.section}>
+          <View style={styles.sectionHeadingRow}>
+            <View style={{ flex: 1 }}>
+              <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Fotografías</Text>
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>Hasta 5 fotos claras y actuales del objeto</Text>
+            </View>
+            <Button mode="outlined" icon="camera-plus-outline" loading={selectingImages} disabled={images.length >= 5 || selectingImages} onPress={() => setPhotoDialog(true)}>Agregar</Button>
           </View>
-          <Button mode="outlined" icon="camera-plus-outline" loading={selectingImages} disabled={images.length >= 5 || selectingImages} onPress={() => setPhotoDialog(true)}>Agregar</Button>
+          {images.length ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoRow}>
+              {images.map((image, index) => (
+                <View key={image.id} style={styles.photoWrap}>
+                  <SmartImage source={getPostImageSource(image)} style={styles.photo} contentFit="cover" accessibilityLabel={image.alt} />
+                  <IconButton icon="close" mode="contained" size={16} onPress={() => setImages(current => current.filter(item => item.id !== image.id))} accessibilityLabel={`Quitar foto ${index + 1}`} style={styles.removePhoto} />
+                  {index === 0 ? <View style={styles.coverLabel}><Text variant="labelSmall" style={styles.coverText}>Portada</Text></View> : null}
+                </View>
+              ))}
+            </ScrollView>
+          ) : (
+            <Surface elevation={0} style={[styles.photoEmpty, { backgroundColor: theme.colors.surface, borderColor: errors.images ? theme.colors.error : theme.colors.outlineVariant }]}>
+              <MaterialCommunityIcons name="image-multiple-outline" size={36} color={theme.colors.onSurfaceVariant} />
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>Mostrá claramente el estado y la cantidad.</Text>
+            </Surface>
+          )}
+          <InlineError message={errors.images} />
         </View>
-        {images.length ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoRow}>
-            {images.map((image, index) => (
-              <View key={image.id} style={styles.photoWrap}>
-                <SmartImage source={getPostImageSource(image)} style={styles.photo} contentFit="cover" accessibilityLabel={image.alt} />
-                <IconButton icon="close" mode="contained" size={16} onPress={() => setImages(current => current.filter(item => item.id !== image.id))} accessibilityLabel={`Quitar foto ${index + 1}`} style={styles.removePhoto} />
-                {index === 0 ? <View style={styles.coverLabel}><Text variant="labelSmall" style={styles.coverText}>Portada</Text></View> : null}
-              </View>
-            ))}
-          </ScrollView>
-        ) : (
-          <Surface elevation={0} style={[styles.photoEmpty, { backgroundColor: theme.colors.surface, borderColor: errors.images ? theme.colors.error : theme.colors.outlineVariant }]}>
-            <MaterialCommunityIcons name="image-multiple-outline" size={36} color={theme.colors.onSurfaceVariant} />
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>Mostrá claramente el estado y la cantidad.</Text>
+      ) : (
+        <View style={styles.section}>
+          <Surface elevation={0} style={[styles.noPhotosNotice, { backgroundColor: theme.colors.surfaceVariant }]}>
+            <MaterialCommunityIcons name="image-off-outline" size={22} color={theme.colors.onSurfaceVariant} />
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, flex: 1 }}>
+              Las publicaciones de "Necesito ayuda" no admiten fotos.
+            </Text>
           </Surface>
-        )}
-        <InlineError message={errors.images} />
-      </View>
+        </View>
+      )}
 
       <Surface elevation={0} style={[styles.safetyCard, { backgroundColor: theme.colors.surfaceVariant }]}>
         <MaterialCommunityIcons name="shield-alert-outline" size={25} color={theme.colors.onSurfaceVariant} />
@@ -726,6 +744,7 @@ const styles = StyleSheet.create({
   safetyCopy: { flex: 1, gap: 7 },
   checkButton: { minHeight: 46, justifyContent: 'flex-start' },
   checkInner: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  noPhotosNotice: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, padding: 14 },
   footerButton: { minHeight: 50 },
   draftRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 },
   statusCard: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, marginHorizontal: 16, padding: 12 },

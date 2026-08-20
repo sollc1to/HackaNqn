@@ -92,25 +92,12 @@ export const createPost: RequestHandler = async (req, res) => {
       return res.status(401).json({ msg: 'missing token' });
     }
 
-    // requiere al menos una imagen.
     const files = Array.isArray(request.files) ? request.files : [];
-    if (files.length < 1) {
+    const { title, description, kind, locationApprox, tags, status, category, condition, delivery, location } = request.body;
+
+    if (kind === 'donation' && files.length < 1) {
       return res.status(400).json({ msg: 'at least one image is required' });
     }
-
-    // toma los datos principales del body.
-    const {
-      title,
-      description,
-      kind,
-      locationApprox,
-      tags,
-      status,
-      category,
-      condition,
-      delivery,
-      location,
-    } = request.body;
 
     // sube las imagenes antes de guardar la publicacion.
     const images = await uploadImages(files, title);
@@ -179,27 +166,17 @@ export const updatePost: RequestHandler = async (req, res) => {
 
     const files = Array.isArray(request.files) ? request.files : [];
     const existingImages = parseStoredImages(request.body.existingImages);
+    const { title, description, kind, locationApprox, tags, status, category, condition, delivery, location } = request.body;
+    const nextImages = [...existingImages, ...files];
+    const nextKind = kind ?? existingPost.kind;
 
-    if (existingImages.length + files.length < 1) {
-      return res.status(400).json({ msg: 'at least one image is required' });
-    }
-
-    if (existingImages.length + files.length > 5) {
+    if (nextImages.length > 5) {
       return res.status(400).json({ msg: 'you can upload up to 5 images' });
     }
 
-    const {
-      title,
-      description,
-      kind,
-      locationApprox,
-      tags,
-      status,
-      category,
-      condition,
-      delivery,
-      location,
-    } = request.body;
+    if (nextKind === 'donation' && nextImages.length < 1) {
+      return res.status(400).json({ msg: 'at least one image is required' });
+    }
 
     const uploadedImages = await uploadImages(files, title);
     const images = [...existingImages, ...uploadedImages];

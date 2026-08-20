@@ -17,33 +17,35 @@ export function PersonalDataView() {
   const theme = useTheme();
   const { updateProfile, savedPosts } = useAppData();
   const { profile, isLoading, error: profileError } = useCurrentUserProfile();
-  const [name, setName] = useState(profile.name);
-  const [email, setEmail] = useState(profile.email ?? '');
-  const [phone, setPhone] = useState(profile.phone ?? '');
-  const [location, setLocation] = useState(profile.location);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [location, setLocation] = useState('');
   const [photoDialog, setPhotoDialog] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [status, setStatus] = useState('');
 
   useEffect(() => {
+    if (!profile) return;
     setName(profile.name);
     setEmail(profile.email ?? '');
     setPhone(profile.phone ?? '');
     setLocation(profile.location);
   }, [profile]);
 
-  if (isLoading) {
+  if (isLoading || !profile) {
     return (
       <AppScreen contentStyle={styles.content}>
         <AppHeader title="Mi perfil" onBackPress={() => router.back()} rightIcon="cog-outline" onRightPress={() => router.push('/settings')} />
         <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, paddingHorizontal: 16 }}>
-          Cargando tu perfil desde el servidor...
+          {isLoading ? 'Cargando tu perfil desde el servidor...' : 'No encontramos tu perfil de sesión.'}
         </Text>
       </AppScreen>
     );
   }
 
   const update = () => {
+    if (!profile) return;
     const next: Errors = {};
     if (name.trim().length < 3) next.name = 'Ingresá tu nombre completo.';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) next.email = 'Ingresá un correo válido.';
@@ -56,6 +58,7 @@ export function PersonalDataView() {
   };
 
   const selectPhoto = async (source: 'camera' | 'library') => {
+    if (!profile) return;
     setPhotoDialog(false);
     try {
       const images = await pickImages(source, false);

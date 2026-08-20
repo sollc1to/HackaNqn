@@ -71,13 +71,17 @@ const postSchema = new mongoose.Schema<Post>(
       set: (value: string[]) =>
         value.map(tag => String(tag).trim().toLowerCase()).filter(Boolean).slice(0, 10),
     },
-    // imagenes del post, minimo una y maximo cinco.
+    // imagenes del post, requeridas solo en donaciones.
     images: {
       type: [postImageSchema],
-      required: true,
+      default: [],
       validate: {
-        validator: (value: unknown[]) => Array.isArray(value) && value.length >= 1 && value.length <= 5,
-        message: 'images must contain between 1 and 5 items',
+        validator: function (this: Post, value: unknown[]) {
+          if (!Array.isArray(value) || value.length > 5) return false;
+          if (this.kind === 'request') return true;
+          return value.length >= 1;
+        },
+        message: 'images must contain up to 5 items and at least one for donations',
       },
     },
     // categoria tematica para filtrar en la busqueda.

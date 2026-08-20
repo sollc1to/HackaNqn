@@ -1,14 +1,8 @@
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 
-import { appAuthors, currentUserId, type AppAuthor, type UserReview } from '@/data/authors';
+import { type AppAuthor, type UserReview } from '@/data/authors';
+import { type ChatMessage, type MessageAttachment, type MessageThread } from '@/data/messages';
 import {
-  messageThreads,
-  type ChatMessage,
-  type MessageAttachment,
-  type MessageThread,
-} from '@/data/messages';
-import {
-  appPosts,
   type AppPost,
   type ArticleCondition,
   type DeliveryMethod,
@@ -16,8 +10,14 @@ import {
   type PostKind,
   type PostStatus,
 } from '@/data/posts';
-import { fetchBackendPosts, mergeAuthorsWithPosts, normalizeBackendPost } from '@/lib/backend-api';
-import { clearStoredAuthSession } from '@/lib/auth-storage';
+import {
+  backendUserToAuthor,
+  fetchBackendPosts,
+  fetchCurrentBackendUser,
+  mergeAuthorsWithPosts,
+  normalizeBackendPost,
+} from '@/lib/backend-api';
+import { clearStoredAuthSession, getStoredAuthToken, getStoredAuthUser } from '@/lib/auth-storage';
 
 export type SearchRadius = 2 | 5 | 10 | 20;
 export type SearchViewMode = 'list' | 'map';
@@ -109,6 +109,7 @@ type PersistedState = {
 type AppDataContextValue = {
   posts: AppPost[];
   authors: AppAuthor[];
+  currentUserId: string;
   threads: MessageThread[];
   reports: AppReport[];
   savedPostIds: string[];
@@ -154,10 +155,15 @@ function getBrowserStorage() {
   return globalThis.localStorage;
 }
 
+function mergeSessionAuthor(authors: AppAuthor[], sessionAuthor: AppAuthor) {
+  return [sessionAuthor, ...authors.filter(author => author.id !== sessionAuthor.id)];
+}
+
 export function AppDataProvider({ children }: { children: ReactNode }) {
-  const [posts, setPosts] = useState(appPosts);
-  const [authors, setAuthors] = useState(appAuthors);
-  const [threads, setThreads] = useState(messageThreads);
+  const [posts, setPosts] = useState<AppPost[]>([]);
+  const [authors, setAuthors] = useState<AppAuthor[]>([]);
+  const [threads, setThreads] = useState<MessageThread[]>([]);
+  const [currentUserId, setCurrentUserId] = useState('');
   const [reports, setReports] = useState<AppReport[]>([]);
   const [savedPostIds, setSavedPostIds] = useState<string[]>([]);
   const [searchFilters, setSearchFilters] = useState(defaultSearchFilters);
@@ -171,17 +177,21 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
+
     const hydrate = async () => {
       setIsHydrating(true);
       setDataError('');
+
       let persistedState: Partial<PersistedState> | undefined;
-      const hasPersistedPosts = (saved: Partial<PersistedState> | undefined) => Boolean(saved?.posts?.length);
+
       try {
         const raw = getBrowserStorage()?.getItem(storageKey);
         if (raw) {
           const saved = JSON.parse(raw) as Partial<PersistedState>;
           persistedState = saved;
+
           if (!active) return;
+
           if (saved.posts) setPosts(saved.posts);
           if (saved.savedPostIds) setSavedPostIds(saved.savedPostIds);
           if (saved.threads) setThreads(saved.threads);
@@ -194,39 +204,48 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         }
       } catch {
         setDataError('No pudimos recuperar los datos guardados en este dispositivo.');
-      } finally {
-        const shouldUseRemotePosts = !hasPersistedPosts(persistedState);
+      }
 
-        try {
-          const remotePosts = await fetchBackendPosts();
+      try {
+        const token = await getStoredAuthToken();
+        const storedUser = await getStoredAuthUser();
+        const backendUser = token ? await fetchCurrentBackendUser(token).catch(() => undefined) : undefined;
+        const sessionUser = backendUser ?? storedUser;
 
-          if (!active) return;
+        if (!active) return;
 
-          if (remotePosts.length > 0) {
-            const normalizedPosts = remotePosts.map(normalizeBackendPost);
-            setPosts(normalizedPosts);
-            setAuthors(mergeAuthorsWithPosts(persistedState?.authors ?? appAuthors, normalizedPosts));
-            setDataError('');
-          } else if (shouldUseRemotePosts) {
-            setPosts(appPosts);
-            setAuthors(mergeAuthorsWithPosts(persistedState?.authors ?? appAuthors, appPosts));
-          }
-        } catch {
-          if (!active) return;
-
-          if (shouldUseRemotePosts) {
-            setPosts(appPosts);
-            setAuthors(mergeAuthorsWithPosts(persistedState?.authors ?? appAuthors, appPosts));
-            setDataError('No pudimos conectar con el servidor. Se muestran los datos de demostración.');
-          } else {
-            setDataError('No pudimos conectar con el servidor, pero conservamos tus datos guardados.');
-          }
-        } finally {
-          setTimeout(() => active && setIsHydrating(false), 220);
+        if (sessionUser) {
+          const sessionAuthor = backendUserToAuthor(sessionUser);
+          setCurrentUserId(sessionAuthor.id);
+          setAuthors(current => mergeSessionAuthor(current.length ? current : persistedState?.authors ?? [], sessionAuthor));
         }
+
+        const remotePosts = await fetchBackendPosts().catch(() => undefined);
+
+        if (!active) return;
+
+        if (remotePosts?.length) {
+          const normalizedPosts = remotePosts.map(normalizeBackendPost);
+          setPosts(normalizedPosts);
+          setAuthors(current => {
+            const baseAuthors = current.length ? current : persistedState?.authors ?? [];
+            const authorsWithSession = sessionUser ? mergeSessionAuthor(baseAuthors, backendUserToAuthor(sessionUser)) : baseAuthors;
+            return mergeAuthorsWithPosts(authorsWithSession, normalizedPosts);
+          });
+          setDataError('');
+        } else if (!persistedState?.posts?.length) {
+          setPosts([]);
+        }
+      } catch {
+        if (!active) return;
+        setDataError('No pudimos conectar con el servidor.');
+      } finally {
+        setTimeout(() => active && setIsHydrating(false), 220);
       }
     };
+
     hydrate();
+
     return () => {
       active = false;
     };
@@ -261,6 +280,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     () => ({
       posts,
       authors,
+      currentUserId,
       threads,
       reports,
       savedPostIds,
@@ -291,7 +311,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       showInterest: postId =>
         setPosts(current =>
           current.map(post => {
-            if (post.id !== postId || post.interestedUserIds.includes(currentUserId)) return post;
+            if (post.id !== postId || !currentUserId || post.interestedUserIds.includes(currentUserId)) return post;
             return { ...post, interestedUserIds: [...post.interestedUserIds, currentUserId] };
           }),
         ),
@@ -415,7 +435,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       addReview: (authorId, rating, comment) => {
         const review: UserReview = {
           id: `review-${Date.now()}`,
-          authorName: 'María G.',
+          authorName: 'Usuario',
           rating,
           comment: comment.trim(),
           createdAt: new Date().toISOString(),
@@ -438,17 +458,20 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       updatePreferences: updates => setPreferences(current => ({ ...current, ...updates })),
       signOut: () => {
         clearStoredAuthSession();
+        setCurrentUserId('');
         setSessionActive(false);
       },
       deleteAccount: () => {
         clearStoredAuthSession();
-        setPosts(current => current.filter(post => post.ownerId !== 'current-user'));
+        setPosts(current => current.filter(post => post.authorId !== currentUserId));
+        setCurrentUserId('');
         setSessionActive(false);
       },
       retryData: () => setRetryToken(current => current + 1),
     }),
     [
       authors,
+      currentUserId,
       dataError,
       isHydrating,
       postDraft,

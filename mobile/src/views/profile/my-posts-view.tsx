@@ -6,7 +6,6 @@ import { Button, Surface, Text, useTheme } from 'react-native-paper';
 
 import { AppHeader, AppScreen, CategoryChip, MyPostItem } from '@/components';
 import { postStatusLabel, type PostStatus } from '@/data/posts';
-import { currentUserId } from '@/data/authors';
 import { useAppData } from '@/state/app-data-context';
 
 type PostStateFilter = 'all' | PostStatus;
@@ -14,10 +13,10 @@ type PostStateFilter = 'all' | PostStatus;
 export function MyPostsView() {
   const router = useRouter();
   const theme = useTheme();
-  const { posts, authors, updatePost } = useAppData();
+  const { posts, authors, updatePost, currentUserId } = useAppData();
   const [filter, setFilter] = useState<PostStateFilter>('all');
   const profile = authors.find(author => author.id === currentUserId);
-  const mine = useMemo(() => posts.filter(post => post.ownerId === 'current-user'), [posts]);
+  const mine = useMemo(() => posts.filter(post => post.authorId === currentUserId), [currentUserId, posts]);
   const visiblePosts = useMemo(() => mine.filter(post => filter === 'all' || post.status === filter), [filter, mine]);
   const interestedCount = mine.reduce((total, post) => total + post.interestedUserIds.length, 0);
 
