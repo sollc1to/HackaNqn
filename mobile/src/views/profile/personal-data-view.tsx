@@ -37,7 +37,7 @@ export function PersonalDataView() {
       <AppScreen contentStyle={styles.content}>
         <AppHeader title="Mi perfil" onBackPress={() => router.back()} rightIcon="cog-outline" onRightPress={() => router.push('/settings')} />
         <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, paddingHorizontal: 16 }}>
-          Cargando tu perfil desde el backend...
+          Cargando tu perfil desde el servidor...
         </Text>
       </AppScreen>
     );

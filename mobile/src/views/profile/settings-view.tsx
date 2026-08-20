@@ -19,8 +19,8 @@ export function SettingsView() {
   if (isLoading) {
     return (
       <AppScreen contentStyle={styles.content}>
-        <AppHeader title="Configuración" onBackPress={() => router.back()} />
-        <Text style={{ color: theme.colors.onSurfaceVariant, paddingHorizontal: 16 }}>Cargando configuración del perfil...</Text>
+      <AppHeader title="Configuración" onBackPress={() => router.back()} />
+      <Text style={{ color: theme.colors.onSurfaceVariant, paddingHorizontal: 16 }}>Cargando configuración del perfil...</Text>
       </AppScreen>
     );
   }

@@ -16,7 +16,7 @@ export type DemoImageKey = 'clothes' | 'food' | 'desk' | 'hygiene' | 'school' | 
 
 export type PostImage =
   | { id: string; kind: 'asset'; assetKey: DemoImageKey; alt: string }
-  | { id: string; kind: 'uri'; uri: string; alt: string };
+  | { id: string; kind: 'uri'; uri: string; alt: string; publicId?: string };
 
 export type PostLocation = {
   label: string;

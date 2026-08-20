@@ -6,8 +6,9 @@ import { Button, Surface, Text, TouchableRipple, useTheme } from 'react-native-p
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBottomNav, AuthorAvatar, CategoryChip, PostCard, SkeletonPostCard } from '@/components';
-import { currentUserId, type AppAuthor } from '@/data/authors';
+import { type AppAuthor } from '@/data/authors';
 import { type AppPost } from '@/data/posts';
+import { useCurrentUserProfile } from '@/hooks/use-current-user-profile';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { useAppData } from '@/state/app-data-context';
 
@@ -80,8 +81,8 @@ export function DashboardView() {
     retryData,
     toggleSavedPost,
   } = useAppData();
+  const { profile: currentAuthor } = useCurrentUserProfile();
   const [filter, setFilter] = useState<FilterKey>('all');
-  const currentAuthor = authors.find(author => author.id === currentUserId);
   const unreadCount = threads.reduce((total, thread) => total + thread.unreadCount, 0);
 
   const visiblePosts = useMemo(

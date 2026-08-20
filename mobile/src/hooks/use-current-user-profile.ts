@@ -71,7 +71,7 @@ export function useCurrentUserProfile(): CurrentProfileState {
         setState({
           profile: fallbackProfile,
           isLoading: false,
-          error: 'No pudimos sincronizar el perfil con el backend. Mostramos la última versión disponible.',
+          error: 'No pudimos sincronizar el perfil con el servidor. Mostramos la última versión disponible.',
           source: storedUser ? 'stored-session' : 'mock',
         });
       }

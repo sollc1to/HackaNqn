@@ -1,7 +1,7 @@
 import PostModel from './post.model';
 import { buildSearchQuery, distanceKmExpression, paginate } from './post.search';
 
-import type { CreatePostDTO, SearchPostsQuery } from './post.interfaces';
+import type { CreatePostDTO, SearchPostsQuery, UpdatePostDTO } from './post.interfaces';
 import type { PostDocument } from './post.types';
 
 // datos necesarios para crear una publicacion nueva.
@@ -30,6 +30,14 @@ export const PostRepository = {
   async createPost(data: CreatePostInput) {
     const newPost = new PostModel(data);
     return await newPost.save();
+  },
+
+  // actualiza una publicacion existente.
+  async updatePostById(id: string, data: UpdatePostDTO & { authorId: string; tags: string[]; images: Array<{ url: string; publicId: string; alt: string }> }) {
+    return await PostModel.findByIdAndUpdate(id, data, {
+      new: true,
+      runValidators: true,
+    });
   },
 
   // busca una publicacion por id.

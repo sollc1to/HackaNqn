@@ -1,4 +1,6 @@
 import { Platform } from 'react-native';
+import { fetch as expoFetch } from 'expo/fetch';
+import { File } from 'expo-file-system';
 
 import { appAuthors, currentUserId, type AppAuthor } from '@/data/authors';
 import {
@@ -13,9 +15,11 @@ import {
 } from '@/data/posts';
 
 const fallbackApiBaseUrl = Platform.select({
-  android: 'http://192.168.0.221:3000',
+  // En emulador Android, la app debe hablar con el host de desarrollo usando 10.0.2.2.
+  // Si corrés en un dispositivo físico, seteá EXPO_PUBLIC_API_URL con la IP real de tu PC.
+  android: 'http://10.0.2.2:3000',
   web: 'http://localhost:3000',
-  default: 'http://192.168.0.221:3000',
+  default: 'http://localhost:3000',
 });
 
 export const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL?.trim() || fallbackApiBaseUrl || 'http://localhost:3000').replace(
@@ -97,11 +101,68 @@ export type RegisterInput = {
   avatarUrl?: string;
 };
 
+export type BackendPostImageUpload = {
+  uri: string;
+  name?: string;
+  type?: string;
+};
+
+export type CreateBackendPostInput = {
+  title: string;
+  description: string;
+  kind: PostKind;
+  locationApprox: string;
+  images: BackendPostImageUpload[];
+  status?: PostStatus;
+  category?: PostCategory;
+  condition?: ArticleCondition;
+  delivery?: DeliveryMethod;
+  location?: PostLocation;
+  tags?: string[];
+};
+
+export type UpdateBackendPostInput = CreateBackendPostInput & {
+  existingImages?: BackendPostImage[];
+};
+
 type RequestOptions = Omit<RequestInit, 'body'> & {
   body?: BodyInit | Record<string, unknown>;
 };
 
 const localCoordinates = { latitude: -38.9516, longitude: -68.0591 };
+const fallbackImageType = 'image/jpeg';
+
+function inferImageFileName(uri: string, index: number) {
+  const cleanedUri = uri.split('?')[0] ?? uri;
+  const candidate = cleanedUri.split('/').filter(Boolean).pop() ?? '';
+  if (!candidate) return `post-image-${index + 1}.jpg`;
+  return candidate.includes('.') ? candidate : `${candidate}.jpg`;
+}
+
+function inferImageType(uri: string) {
+  const extension = uri.split('?')[0]?.split('.').pop()?.toLowerCase();
+  if (extension === 'png') return 'image/png';
+  if (extension === 'webp') return 'image/webp';
+  if (extension === 'heic') return 'image/heic';
+  return fallbackImageType;
+}
+
+async function appendImage(formData: FormData, image: BackendPostImageUpload, index: number) {
+  const fileName = image.name?.trim() || inferImageFileName(image.uri, index);
+  const mimeType = image.type?.trim() || inferImageType(image.uri);
+
+  if (Platform.OS === 'web') {
+    const response = await fetch(image.uri);
+    if (!response.ok) throw new Error('No pudimos preparar una de las imágenes para subir.');
+    const blob = await response.blob();
+    formData.append('images', blob, fileName);
+    return;
+  }
+
+  const file = new File(image.uri);
+  // Expo fetch espera un File real, no el objeto { uri, name, type } de React Native.
+  formData.append('images', file);
+}
 
 function buildUrl(path: string, query?: Record<string, string | number | undefined>) {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
@@ -126,7 +187,7 @@ async function requestJson<T>(path: string, options: RequestOptions = {}, query?
 
   headers.set('Accept', 'application/json');
 
-  const response = await fetch(buildUrl(path, query), {
+  const response = await expoFetch(buildUrl(path, query), {
     ...options,
     headers,
     body:
@@ -182,6 +243,7 @@ function buildPostImages(images: BackendPostImage[]): PostImage[] {
     kind: 'uri',
     uri: image.url,
     alt: image.alt,
+    publicId: image.publicId,
   }));
 }
 
@@ -281,6 +343,64 @@ export async function fetchBackendPosts(query?: Record<string, string | number |
 
 export async function fetchBackendPostById(postId: string) {
   const response = await requestJson<{ msg: string; post: BackendPost }>(`/api/posts/${postId}`, { method: 'GET' });
+  return response.post;
+}
+
+export async function createBackendPost(input: CreateBackendPostInput, token?: string) {
+  if (!token) throw new Error('missing token');
+  if (!input.images.length) throw new Error('at least one image is required');
+
+  const formData = new FormData();
+  formData.append('title', input.title);
+  formData.append('description', input.description);
+  formData.append('kind', input.kind);
+  formData.append('locationApprox', input.locationApprox);
+
+  if (input.status) formData.append('status', input.status);
+  if (input.category) formData.append('category', input.category);
+  if (input.condition) formData.append('condition', input.condition);
+  if (input.delivery) formData.append('delivery', input.delivery);
+  if (input.tags?.length) formData.append('tags', input.tags.join(','));
+
+  for (const [index, image] of input.images.entries()) {
+    await appendImage(formData, image, index);
+  }
+
+  const response = await requestJson<{ msg: string; post: BackendPost }>('/api/posts', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+
+  return response.post;
+}
+
+export async function updateBackendPost(postId: string, input: UpdateBackendPostInput, token?: string) {
+  if (!token) throw new Error('missing token');
+
+  const formData = new FormData();
+  formData.append('title', input.title);
+  formData.append('description', input.description);
+  formData.append('kind', input.kind);
+  formData.append('locationApprox', input.locationApprox);
+
+  if (input.status) formData.append('status', input.status);
+  if (input.category) formData.append('category', input.category);
+  if (input.condition) formData.append('condition', input.condition);
+  if (input.delivery) formData.append('delivery', input.delivery);
+  if (input.tags?.length) formData.append('tags', input.tags.join(','));
+  if (input.existingImages?.length) formData.append('existingImages', JSON.stringify(input.existingImages));
+
+  for (const [index, image] of input.images.entries()) {
+    await appendImage(formData, image, index);
+  }
+
+  const response = await requestJson<{ msg: string; post: BackendPost }>(`/api/posts/${postId}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+
   return response.post;
 }
 

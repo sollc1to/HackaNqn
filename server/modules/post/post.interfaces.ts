@@ -67,6 +67,15 @@ export interface CreatePostDTO {
   location?: PostLocation;
 }
 
+// datos que acepta la actualizacion de una publicacion.
+export interface UpdatePostDTO extends Partial<CreatePostDTO> {
+  images?: Array<{
+    url: string;
+    publicId: string;
+    alt: string;
+  }>;
+}
+
 // filtros de busqueda de publicaciones.
 export interface SearchPostsQuery {
   kind?: PostKind;

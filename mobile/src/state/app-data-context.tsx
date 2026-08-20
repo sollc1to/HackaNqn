@@ -217,9 +217,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           if (shouldUseRemotePosts) {
             setPosts(appPosts);
             setAuthors(mergeAuthorsWithPosts(persistedState?.authors ?? appAuthors, appPosts));
-            setDataError('No pudimos conectar con el backend. Se muestran los datos de demostración.');
+            setDataError('No pudimos conectar con el servidor. Se muestran los datos de demostración.');
           } else {
-            setDataError('No pudimos conectar con el backend, pero conservamos tus datos guardados.');
+            setDataError('No pudimos conectar con el servidor, pero conservamos tus datos guardados.');
           }
         } finally {
           setTimeout(() => active && setIsHydrating(false), 220);
@@ -275,7 +275,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       addPost: post => setPosts(current => [post, ...current]),
       updatePost: (postId, updates) =>
         setPosts(current =>
-          current.map(post => (post.id === postId ? { ...post, ...updates, updatedAt: new Date().toISOString() } : post)),
+          current.map(post =>
+            post.id === postId
+              ? { ...post, ...updates, updatedAt: updates.updatedAt ?? new Date().toISOString() }
+              : post,
+          ),
         ),
       deletePost: postId => {
         setPosts(current => current.filter(post => post.id !== postId));

@@ -12,6 +12,7 @@ import {
   Surface,
   Text,
   TextInput,
+  TouchableRipple,
   useTheme,
 } from 'react-native-paper';
 
@@ -28,6 +29,8 @@ import {
   type PostKind,
   type PostLocation,
 } from '@/data/posts';
+import { createBackendPost, normalizeBackendPost, updateBackendPost, type BackendPostImage } from '@/lib/backend-api';
+import { getStoredAuthToken } from '@/lib/auth-storage';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { type PostDraft, useAppData } from '@/state/app-data-context';
 import { getPickImageErrorMessage, pickImages, type PickImageSource } from '@/utils/pick-image';
@@ -102,6 +105,18 @@ function draftSignature(draft?: PostDraft) {
   ]);
 }
 
+function isBackendObjectId(value: string) {
+  return /^[a-f0-9]{24}$/i.test(value);
+}
+
+function toBackendImage(image: Extract<PostImage, { kind: 'uri' }>): BackendPostImage {
+  return {
+    url: image.uri,
+    publicId: image.publicId ?? image.id,
+    alt: image.alt,
+  };
+}
+
 function InlineError({ message }: { message?: string }) {
   const theme = useTheme();
   if (!message) return null;
@@ -164,6 +179,7 @@ export function CreatePostView() {
   const [createdPostId, setCreatedPostId] = useState<string>();
   const [statusMessage, setStatusMessage] = useState('');
   const [selectingImages, setSelectingImages] = useState(false);
+  const [submittingPost, setSubmittingPost] = useState(false);
 
   const currentDraft = useMemo<PostDraft>(() => ({
     kind,
@@ -278,13 +294,14 @@ export function CreatePostView() {
     return Object.keys(next).length === 0;
   };
 
-  const publish = () => {
+  const publish = async () => {
     setStatusMessage('');
     if (!validate() || !location) return;
+    setSubmittingPost(true);
     const now = new Date().toISOString();
     const id = editingPost?.id ?? `community-${Date.now()}`;
     const finalDescription = composeDescription(description, conditionDetails, kind);
-    const post: AppPost = {
+    const localPost: AppPost = {
       id,
       title: title.trim(),
       kind,
@@ -306,12 +323,88 @@ export function CreatePostView() {
       interestedUserIds: editingPost?.interestedUserIds ?? [],
       ownerId: 'current-user',
     };
-    if (editingPost) updatePost(id, post);
-    else addPost(post);
-    savePostDraft(undefined);
-    initialRef.current = currentDraft;
-    setCreatedPostId(id);
-    setSuccessVisible(true);
+    try {
+      if (editingPost && isBackendObjectId(editingPost.id)) {
+        const token = await getStoredAuthToken();
+        const existingImages = localPost.images
+          .filter((image): image is Extract<PostImage, { kind: 'uri' }> => image.kind === 'uri' && /^https?:\/\//i.test(image.uri))
+          .map(toBackendImage);
+        const uploadableImages = localPost.images
+          .filter((image): image is Extract<PostImage, { kind: 'uri' }> => image.kind === 'uri' && !/^https?:\/\//i.test(image.uri))
+          .map(image => ({ uri: image.uri }));
+        const updatedBackendPost = await updateBackendPost(
+          editingPost.id,
+          {
+            title: localPost.title,
+            description: localPost.description,
+            kind: localPost.kind,
+            locationApprox: localPost.meetingPoint,
+            images: uploadableImages,
+            existingImages,
+            status: localPost.status,
+            category: localPost.category,
+            condition: localPost.condition,
+            delivery: localPost.delivery,
+            location: localPost.location,
+          },
+          token,
+        );
+        const normalizedPost = normalizeBackendPost(updatedBackendPost);
+        updatePost(id, {
+          ...localPost,
+          id: normalizedPost.id,
+          authorId: normalizedPost.authorId,
+          images: normalizedPost.images.length ? normalizedPost.images : localPost.images,
+          location: normalizedPost.location,
+          meetingPoint: normalizedPost.meetingPoint,
+          publishedAt: normalizedPost.publishedAt,
+          updatedAt: normalizedPost.updatedAt,
+          status: normalizedPost.status,
+        });
+        setCreatedPostId(normalizedPost.id);
+      } else {
+        const token = await getStoredAuthToken();
+        const uploadableImages = localPost.images
+          .filter((image): image is Extract<PostImage, { kind: 'uri' }> => image.kind === 'uri')
+          .map(image => ({ uri: image.uri }));
+        const createdBackendPost = await createBackendPost(
+          {
+            title: localPost.title,
+            description: localPost.description,
+            kind: localPost.kind,
+            locationApprox: location.label,
+            images: uploadableImages,
+            status: localPost.status,
+            category: localPost.category,
+            condition: localPost.condition,
+            delivery: localPost.delivery,
+            location: localPost.location,
+          },
+          token,
+        );
+        const normalizedPost = normalizeBackendPost(createdBackendPost);
+        addPost({
+          ...localPost,
+          id: normalizedPost.id,
+          authorId: normalizedPost.authorId,
+          images: normalizedPost.images.length ? normalizedPost.images : localPost.images,
+          location: normalizedPost.location,
+          meetingPoint: normalizedPost.meetingPoint,
+          publishedAt: normalizedPost.publishedAt,
+          updatedAt: normalizedPost.updatedAt,
+          status: normalizedPost.status,
+        });
+        setCreatedPostId(normalizedPost.id);
+      }
+      savePostDraft(undefined);
+      initialRef.current = currentDraft;
+      if (editingPost) setCreatedPostId(id);
+      setSuccessVisible(true);
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : 'No pudimos publicar en el servidor.');
+    } finally {
+      setSubmittingPost(false);
+    }
   };
 
   const saveDraft = () => {
@@ -322,7 +415,17 @@ export function CreatePostView() {
 
   return (
     <AppScreen
-      footer={<Button mode="contained" icon="check" contentStyle={styles.footerButton} onPress={publish}>{editingPost ? 'Guardar cambios' : 'Publicar'}</Button>}
+      footer={
+        <Button
+          mode="contained"
+          icon="check"
+          contentStyle={styles.footerButton}
+          onPress={publish}
+          loading={submittingPost}
+          disabled={submittingPost || selectingImages}>
+          {editingPost ? 'Guardar cambios' : 'Publicar'}
+        </Button>
+      }
       contentStyle={styles.content}>
       <AppHeader title={editingPost ? 'Editar publicación' : 'Nueva publicación'} onBackPress={attemptLeave} />
 
@@ -584,12 +687,14 @@ export function CreatePostView() {
 function TouchableCheck({ checked, onPress }: { checked: boolean; onPress: () => void }) {
   const theme = useTheme();
   return (
-    <Button mode="text" onPress={onPress} contentStyle={styles.checkButton} accessibilityState={{ checked }} accessibilityRole="checkbox">
+    <TouchableRipple onPress={onPress} style={styles.checkButton} accessibilityState={{ checked }} accessibilityRole="checkbox">
       <View style={styles.checkInner}>
-        <Checkbox status={checked ? 'checked' : 'unchecked'} />
-        <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, flex: 1 }}>Confirmo que la publicación cumple las normas y que la información es verdadera.</Text>
+        <Checkbox status={checked ? 'checked' : 'unchecked'} onPress={onPress} />
+        <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, flex: 1 }}>
+          Confirmo que la publicación cumple las normas y que la información es verdadera.
+        </Text>
       </View>
-    </Button>
+    </TouchableRipple>
   );
 }
 

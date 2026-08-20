@@ -428,9 +428,22 @@ export function AuthView() {
                 left={<TextInput.Icon icon="phone-outline" />}
               />
 
-          
+              <TextInput
+                mode="outlined"
+                label="Dirección"
+                placeholder="Ej.: Fotheringham 1234, Neuquén"
+                value={address}
+                onChangeText={value => {
+                  setAddress(value);
+                  clearMessage();
+                }}
+                autoComplete="street-address"
+                outlineColor={theme.colors.outlineVariant}
+                activeOutlineColor={theme.colors.primary}
+                style={styles.input}
+                left={<TextInput.Icon icon="map-marker-outline" />}
+              />
 
-             
             </>
           ) : (
             <TextInput

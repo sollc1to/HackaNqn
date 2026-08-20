@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { body, param, query } from 'express-validator';
 
-import { createPost, getPostById, searchPosts } from './post.controllers';
+import { createPost, getPostById, searchPosts, updatePost } from './post.controllers';
 import { requireAuth } from '../user/user.middleware';
 import { handlePostImagesUpload } from './post.upload';
 
@@ -154,3 +154,5 @@ PostRouter.get('/', searchRules, searchPosts);
 PostRouter.get('/:id', param('id').isMongoId().withMessage('id is invalid'), getPostById);
 // crea una publicacion protegida con jwt y subida de imagenes.
 PostRouter.post('/', requireAuth, handlePostImagesUpload, createRules, createPost);
+// actualiza una publicacion propia protegida con jwt y subida de imagenes.
+PostRouter.put('/:id', requireAuth, param('id').isMongoId().withMessage('id is invalid'), handlePostImagesUpload, createRules, updatePost);
