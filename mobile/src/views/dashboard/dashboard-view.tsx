@@ -9,6 +9,8 @@ import { AppBottomNav, AuthorAvatar, CategoryChip, PostCard, SkeletonPostCard } 
 import { type AppAuthor } from '@/data/authors';
 import { type AppPost } from '@/data/posts';
 import { useCurrentUserProfile } from '@/hooks/use-current-user-profile';
+import { backendUserToAuthor, fetchBackendUserById } from '@/lib/backend-api';
+import { getStoredAuthToken } from '@/lib/auth-storage';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { useAppData } from '@/state/app-data-context';
 
@@ -68,6 +70,10 @@ function AnimatedPostCard({
   );
 }
 
+function isPlaceholderAuthor(author?: AppAuthor) {
+  return Boolean(author && /^Usuario\s+\d+$/i.test(author.name));
+}
+
 export function DashboardView() {
   const router = useRouter();
   const theme = useTheme();
@@ -83,6 +89,7 @@ export function DashboardView() {
   } = useAppData();
   const { profile: currentAuthor } = useCurrentUserProfile();
   const [filter, setFilter] = useState<FilterKey>('all');
+  const [resolvedAuthors, setResolvedAuthors] = useState<Record<string, AppAuthor>>({});
   const unreadCount = threads.reduce((total, thread) => total + thread.unreadCount, 0);
 
   const visiblePosts = useMemo(
@@ -102,6 +109,50 @@ export function DashboardView() {
     { key: 'publish', label: 'Publicar', icon: 'plus-circle-outline' as const },
     { key: 'messages', label: 'Mensajes', icon: 'chat-outline' as const, badge: unreadCount > 0 },
   ];
+
+  useEffect(() => {
+    let active = true;
+
+    const loadAuthors = async () => {
+      const token = await getStoredAuthToken();
+      if (!token) return;
+
+      const missingIds = visiblePosts
+        .map(post => post.authorId)
+        .filter((authorId, index, items) => items.indexOf(authorId) === index)
+        .filter(authorId => {
+          const existing = resolvedAuthors[authorId] ?? authors.find(candidate => candidate.id === authorId);
+          return !existing || isPlaceholderAuthor(existing);
+        });
+
+      if (!missingIds.length) return;
+
+      const results = await Promise.allSettled(
+        missingIds.map(async authorId => {
+          const backendUser = await fetchBackendUserById(authorId, token);
+          return [authorId, backendUserToAuthor(backendUser)] as const;
+        }),
+      );
+
+      if (!active) return;
+
+      setResolvedAuthors(current => {
+        const next = { ...current };
+        for (const result of results) {
+          if (result.status !== 'fulfilled') continue;
+          const [authorId, author] = result.value;
+          next[authorId] = author;
+        }
+        return next;
+      });
+    };
+
+    void loadAuthors();
+
+    return () => {
+      active = false;
+    };
+  }, [authors, resolvedAuthors, visiblePosts]);
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: theme.colors.background }]}>
@@ -209,7 +260,8 @@ export function DashboardView() {
           </View>
         }
         renderItem={({ item, index }) => {
-          const author = authors.find(candidate => candidate.id === item.authorId);
+          const localAuthor = authors.find(candidate => candidate.id === item.authorId);
+          const author = resolvedAuthors[item.authorId] ?? localAuthor;
           return (
             <AnimatedPostCard
               post={item}

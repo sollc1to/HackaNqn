@@ -1,4 +1,4 @@
-import { type ComponentProps, useMemo, useState } from 'react';
+import { type ComponentProps, useEffect, useMemo, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { Share, ScrollView, StyleSheet, View } from 'react-native';
@@ -20,6 +20,7 @@ import {
 } from 'react-native-paper';
 
 import { AppHeader, AppScreen, AuthorAvatar, RatingStars, SmartImage } from '@/components';
+import { type AppAuthor } from '@/data/authors';
 import {
   conditionLabel,
   deliveryLabel,
@@ -30,6 +31,8 @@ import {
 } from '@/data/posts';
 import { useAppData } from '@/state/app-data-context';
 import { formatDate, formatRelativeDate } from '@/utils/date';
+import { fetchBackendUserById, backendUserToAuthor } from '@/lib/backend-api';
+import { getStoredAuthToken } from '@/lib/auth-storage';
 
 const reportReasons = [
   'Información engañosa o posible estafa',
@@ -102,10 +105,38 @@ export function PostDetailView() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [interestedOpen, setInterestedOpen] = useState(false);
   const [feedback, setFeedback] = useState('');
+  const [remoteAuthor, setRemoteAuthor] = useState<AppAuthor>();
 
   const postId = Array.isArray(params.postId) ? params.postId[0] : params.postId;
   const post = useMemo(() => posts.find(item => item.id === postId), [postId, posts]);
-  const author = authors.find(candidate => candidate.id === post?.authorId);
+  const author = remoteAuthor ?? authors.find(candidate => candidate.id === post?.authorId);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadAuthor = async () => {
+      if (!post?.authorId) {
+        setRemoteAuthor(undefined);
+        return;
+      }
+
+      setRemoteAuthor(authors.find(candidate => candidate.id === post.authorId));
+
+      const token = await getStoredAuthToken();
+      if (!token) return;
+
+      const backendUser = await fetchBackendUserById(post.authorId, token).catch(() => undefined);
+      if (!active || !backendUser) return;
+
+      setRemoteAuthor(backendUserToAuthor(backendUser));
+    };
+
+    void loadAuthor();
+
+    return () => {
+      active = false;
+    };
+  }, [authors, post?.authorId]);
 
   if (!post) {
     return (

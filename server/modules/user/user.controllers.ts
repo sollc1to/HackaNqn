@@ -159,3 +159,28 @@ export async function getMyProfile(req: AuthenticatedRequest, res: Response) {
     return res.status(500).json({ msg: 'internal server error' });
   }
 }
+
+// devuelve el perfil publico de un usuario por id.
+export async function getUserById(req: AuthenticatedRequest & Request<{ userId: string }>, res: Response) {
+  try {
+    const authUserId = req.auth?.sub;
+
+    if (!authUserId) {
+      return res.status(401).json({ msg: 'missing token' });
+    }
+
+    const user = await UserRepository.findById(req.params.userId);
+
+    if (!user) {
+      return res.status(404).json({ msg: 'user not found' });
+    }
+
+    return res.status(200).json({
+      msg: 'user retrieved successfully',
+      user: getSafeUser(user),
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ msg: 'internal server error' });
+  }
+}

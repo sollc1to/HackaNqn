@@ -59,6 +59,10 @@ function buildFallbackAuthor(thread?: {
   } satisfies AppAuthor;
 }
 
+function isPlaceholderAuthor(author?: AppAuthor) {
+  return Boolean(author?.name && /^Usuario\s+\d+$/i.test(author.name));
+}
+
 export function ConversationView() {
   const router = useRouter();
   const theme = useTheme();
@@ -78,7 +82,10 @@ export function ConversationView() {
   const listRef = useRef<FlatList<ChatMessage>>(null);
   const thread = threads.find(candidate => candidate.id === threadId);
   const post = posts.find(item => item.id === thread?.postId);
-  const participant = authors.find(author => author.id === thread?.participantId) ?? buildFallbackAuthor(thread);
+  const localParticipant = authors.find(author => author.id === thread?.participantId);
+  const participant = !localParticipant || isPlaceholderAuthor(localParticipant)
+    ? buildFallbackAuthor(thread) ?? localParticipant
+    : localParticipant;
   const [draft, setDraft] = useState('');
   const [pendingAttachment, setPendingAttachment] = useState<MessageAttachment>();
   const [menuOpen, setMenuOpen] = useState(false);

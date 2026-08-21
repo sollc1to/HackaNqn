@@ -443,6 +443,15 @@ export async function fetchBackendPostById(postId: string) {
   return response.post;
 }
 
+export async function fetchBackendUserById(userId: string, token?: string) {
+  if (!token) throw new Error('missing token');
+  const response = await requestJson<BackendProfileResponse>(`/api/auth/users/${userId}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return response.user;
+}
+
 export async function createBackendPost(input: CreateBackendPostInput, token?: string) {
   if (!token) throw new Error('missing token');
 

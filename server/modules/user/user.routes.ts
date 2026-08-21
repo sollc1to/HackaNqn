@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { body } from 'express-validator';
+import { body, param } from 'express-validator';
 
-import { getMyProfile, loginUser, registerUser } from './user.controllers';
+import { getMyProfile, getUserById, loginUser, registerUser } from './user.controllers';
 import { requireAuth } from './user.middleware';
 
 export const AuthRouter: Router = Router();
@@ -49,3 +49,6 @@ AuthRouter.post('/login', loginRules, loginUser);
 
 // devuelve el perfil del usuario autenticado.
 AuthRouter.get('/me', requireAuth, getMyProfile);
+
+// devuelve el perfil publico de un usuario por id.
+AuthRouter.get('/users/:userId', requireAuth, param('userId').isMongoId().withMessage('userId is invalid'), getUserById);

@@ -41,10 +41,17 @@ function buildFallbackAuthor(thread: MessageThread): AppAuthor | undefined {
   };
 }
 
+function isPlaceholderAuthor(author?: AppAuthor) {
+  return Boolean(author?.name && /^Usuario\s+\d+$/i.test(author.name));
+}
+
 function ThreadItem({ thread, onPress }: { thread: MessageThread; onPress: () => void }) {
   const theme = useTheme();
   const { authors, posts } = useAppData();
-  const participant = authors.find(author => author.id === thread.participantId) ?? buildFallbackAuthor(thread);
+  const localParticipant = authors.find(author => author.id === thread.participantId);
+  const participant = !localParticipant || isPlaceholderAuthor(localParticipant)
+    ? buildFallbackAuthor(thread) ?? localParticipant
+    : localParticipant;
   const post = posts.find(item => item.id === thread.postId);
 
   return (
@@ -87,7 +94,10 @@ export function MessagesByPostView() {
   const visibleThreads = useMemo(() => threads
     .filter(thread => thread.archived === showArchived)
     .filter(thread => {
-      const participant = authors.find(author => author.id === thread.participantId);
+      const localParticipant = authors.find(author => author.id === thread.participantId);
+      const participant = !localParticipant || isPlaceholderAuthor(localParticipant)
+        ? buildFallbackAuthor(thread) ?? localParticipant
+        : localParticipant;
       const post = posts.find(item => item.id === thread.postId);
       return fuzzyIncludes(`${participant?.name ?? ''} ${post?.title ?? ''} ${thread.preview}`, query);
     })

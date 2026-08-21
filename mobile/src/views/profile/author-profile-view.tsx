@@ -1,12 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Dialog, Divider, Portal, Surface, Text, TextInput, useTheme } from 'react-native-paper';
 
 import { AppHeader, AppScreen, AuthorAvatar, PostCard, RatingStars } from '@/components';
+import { type AppAuthor } from '@/data/authors';
 import { formatDate } from '@/utils/date';
 import { useAppData } from '@/state/app-data-context';
+import { backendUserToAuthor, fetchBackendUserById } from '@/lib/backend-api';
+import { getStoredAuthToken } from '@/lib/auth-storage';
 
 export function AuthorProfileView() {
   const router = useRouter();
@@ -14,13 +17,41 @@ export function AuthorProfileView() {
   const params = useLocalSearchParams<{ authorId?: string | string[] }>();
   const authorId = Array.isArray(params.authorId) ? params.authorId[0] : params.authorId;
   const { authors, posts, savedPostIds, toggleSavedPost, addReview, preferences, report, currentUserId } = useAppData();
-  const author = authors.find(candidate => candidate.id === authorId);
+  const [remoteAuthor, setRemoteAuthor] = useState<AppAuthor>();
+  const author = remoteAuthor ?? authors.find(candidate => candidate.id === authorId);
   const authorPosts = useMemo(() => posts.filter(post => post.authorId === authorId), [authorId, posts]);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [error, setError] = useState('');
   const [reportOpen, setReportOpen] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadAuthor = async () => {
+      if (!authorId) {
+        setRemoteAuthor(undefined);
+        return;
+      }
+
+      setRemoteAuthor(authors.find(candidate => candidate.id === authorId));
+
+      const token = await getStoredAuthToken();
+      if (!token) return;
+
+      const backendUser = await fetchBackendUserById(authorId, token).catch(() => undefined);
+      if (!active || !backendUser) return;
+
+      setRemoteAuthor(backendUserToAuthor(backendUser));
+    };
+
+    void loadAuthor();
+
+    return () => {
+      active = false;
+    };
+  }, [authorId, authors]);
 
   if (!author) {
     return (
