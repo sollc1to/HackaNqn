@@ -174,17 +174,15 @@ function inferImageType(uri: string) {
 async function appendImage(formData: FormData, image: BackendPostImageUpload, index: number) {
   const fileName = image.name?.trim() || inferImageFileName(image.uri, index);
   const mimeType = image.type?.trim() || inferImageType(image.uri);
+  const response = await fetch(image.uri);
 
-  if (Platform.OS === 'web') {
-    const response = await fetch(image.uri);
-    if (!response.ok) throw new Error('No pudimos preparar una de las imágenes para subir.');
-    const blob = await response.blob();
-    formData.append('images', blob, fileName);
-    return;
+  if (!response.ok) {
+    throw new Error('No pudimos preparar una de las imágenes para subir.');
   }
 
-  // React Native entiende el formato { uri, name, type } en multipart.
-  formData.append('images', { uri: image.uri, name: fileName, type: mimeType } as any);
+  const blob = await response.blob();
+  const fileBlob = blob.type === mimeType ? blob : new Blob([blob], { type: mimeType });
+  formData.append('images', fileBlob, fileName);
 }
 
 function buildUrl(path: string, query?: Record<string, string | number | undefined>) {
