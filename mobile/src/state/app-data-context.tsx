@@ -1,5 +1,4 @@
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
-import { AppState, type AppStateStatus } from 'react-native';
 
 import { type AppAuthor, type UserReview } from '@/data/authors';
 import { type ChatMessage, type MessageAttachment, type MessageThread } from '@/data/messages';
@@ -212,7 +211,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [dataError, setDataError] = useState('');
   const [sessionActive, setSessionActive] = useState(true);
   const [authToken, setAuthToken] = useState<string | undefined>();
-  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
   const [retryToken, setRetryToken] = useState(0);
 
   useEffect(() => {
@@ -304,17 +302,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   }, [retryToken]);
 
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', nextAppState => {
-      setAppState(nextAppState);
-    });
-
-    return () => {
-      subscription.remove();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (isHydrating || !sessionActive || !authToken || !currentUserId || appState !== 'active') return;
+    if (isHydrating || !sessionActive || !authToken || !currentUserId) return;
 
     let active = true;
 
@@ -338,7 +326,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       active = false;
       clearInterval(interval);
     };
-  }, [appState, authToken, currentUserId, isHydrating, sessionActive]);
+  }, [authToken, currentUserId, isHydrating, sessionActive]);
 
   useEffect(() => {
     if (isHydrating) return;
