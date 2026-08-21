@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Button, Dialog, IconButton, Portal, Text, TextInput, TouchableRipple, useTheme } from 'react-native-paper';
 
 import { formatDate, localDateToIso } from '@/utils/date';
@@ -42,22 +42,37 @@ export function AppDatePicker({
 
   return (
     <>
-      <TextInput
-        mode="outlined"
-        label={label}
-        value={value ? formatDate(value) : ''}
-        placeholder="Seleccioná una fecha"
-        editable={false}
-        error={error}
-        onPressIn={() => setVisible(true)}
-        left={<TextInput.Icon icon="calendar-outline" onPress={() => setVisible(true)} />}
-        right={
-          value ? <TextInput.Icon icon="close" accessibilityLabel="Quitar fecha" onPress={() => onChange(undefined)} /> : undefined
-        }
-        outlineColor={theme.colors.outlineVariant}
-        activeOutlineColor={theme.colors.primary}
-        accessibilityLabel={`${label}. ${value ? formatDate(value) : 'Sin seleccionar'}`}
-      />
+      <View style={styles.inputShell}>
+        <TextInput
+          mode="outlined"
+          label={label}
+          value={value ? formatDate(value) : ''}
+          placeholder="Seleccioná una fecha"
+          editable={false}
+          error={error}
+          left={<TextInput.Icon icon="calendar-outline" />}
+          right={undefined}
+          outlineColor={theme.colors.outlineVariant}
+          activeOutlineColor={theme.colors.primary}
+          pointerEvents="none"
+          style={styles.inputField}
+        />
+        <Pressable
+          onPress={() => setVisible(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`${label}. ${value ? formatDate(value) : 'Sin seleccionar'}. Abrir calendario.`}
+          style={styles.inputOverlay}
+        />
+        {value ? (
+          <IconButton
+            icon="close"
+            accessibilityLabel="Quitar fecha"
+            onPress={() => onChange(undefined)}
+            style={styles.clearButton}
+            size={18}
+          />
+        ) : null}
+      </View>
       {helperText ? (
         <Text variant="bodySmall" style={{ color: error ? theme.colors.error : theme.colors.onSurfaceVariant }}>
           {helperText}
@@ -70,6 +85,11 @@ export function AppDatePicker({
           <Dialog.Content>
             <View style={styles.monthHeader}>
               <IconButton
+                icon="chevron-double-left"
+                onPress={() => setMonth(current => new Date(current.getFullYear() - 1, current.getMonth(), 1))}
+                accessibilityLabel="Año anterior"
+              />
+              <IconButton
                 icon="chevron-left"
                 onPress={() => setMonth(current => new Date(current.getFullYear(), current.getMonth() - 1, 1))}
                 accessibilityLabel="Mes anterior"
@@ -81,6 +101,11 @@ export function AppDatePicker({
                 icon="chevron-right"
                 onPress={() => setMonth(current => new Date(current.getFullYear(), current.getMonth() + 1, 1))}
                 accessibilityLabel="Mes siguiente"
+              />
+              <IconButton
+                icon="chevron-double-right"
+                onPress={() => setMonth(current => new Date(current.getFullYear() + 1, current.getMonth(), 1))}
+                accessibilityLabel="Año siguiente"
               />
             </View>
             <View style={styles.calendarGrid}>
@@ -128,8 +153,22 @@ export function AppDatePicker({
 }
 
 const styles = StyleSheet.create({
+  inputShell: {
+    position: 'relative',
+  },
+  inputField: {},
+  inputOverlay: {
+    ...StyleSheet.absoluteFill,
+    borderRadius: 4,
+  },
+  clearButton: {
+    position: 'absolute',
+    right: 2,
+    top: 6,
+    zIndex: 2,
+  },
   dialog: { width: '92%', maxWidth: 420, alignSelf: 'center', borderRadius: 24 },
-  monthHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  monthHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4 },
   monthTitle: { textTransform: 'capitalize', fontWeight: '800' },
   calendarGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingTop: 8 },
   weekDay: { width: '14.285%', textAlign: 'center', paddingVertical: 8, fontWeight: '800' },
