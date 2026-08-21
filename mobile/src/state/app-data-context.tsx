@@ -1,4 +1,5 @@
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 
 import { type AppAuthor, type UserReview } from '@/data/authors';
 import { type ChatMessage, type MessageAttachment, type MessageThread } from '@/data/messages';
@@ -170,6 +171,32 @@ function upsertThread(threads: MessageThread[], nextThread: MessageThread) {
   );
 }
 
+function mergeThreadState(currentThread: MessageThread | undefined, nextThread: MessageThread) {
+  if (!currentThread) return nextThread;
+
+  return {
+    ...currentThread,
+    ...nextThread,
+    archived: currentThread.archived || nextThread.archived,
+    blocked: currentThread.blocked || nextThread.blocked,
+    reported: currentThread.reported || nextThread.reported,
+    messages: nextThread.messages.length >= currentThread.messages.length ? nextThread.messages : currentThread.messages,
+    participantName: nextThread.participantName ?? currentThread.participantName,
+    participantAvatarUrl: nextThread.participantAvatarUrl ?? currentThread.participantAvatarUrl,
+  };
+}
+
+function mergeThreadsFromServer(currentThreads: MessageThread[], remoteThreads: MessageThread[]) {
+  const currentById = new Map(currentThreads.map(thread => [thread.id, thread] as const));
+  const mergedRemote = remoteThreads.map(thread => mergeThreadState(currentById.get(thread.id), thread));
+  const mergedIds = new Set(remoteThreads.map(thread => thread.id));
+  const preservedLocal = currentThreads.filter(thread => !mergedIds.has(thread.id));
+
+  return [...mergedRemote, ...preservedLocal].sort(
+    (first, second) => new Date(second.updatedAt).getTime() - new Date(first.updatedAt).getTime(),
+  );
+}
+
 export function AppDataProvider({ children }: { children: ReactNode }) {
   const [posts, setPosts] = useState<AppPost[]>([]);
   const [authors, setAuthors] = useState<AppAuthor[]>([]);
@@ -184,6 +211,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [isHydrating, setIsHydrating] = useState(true);
   const [dataError, setDataError] = useState('');
   const [sessionActive, setSessionActive] = useState(true);
+  const [authToken, setAuthToken] = useState<string | undefined>();
+  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
   const [retryToken, setRetryToken] = useState(0);
 
   useEffect(() => {
@@ -221,6 +250,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
       try {
         token = await getStoredAuthToken();
+        setAuthToken(token);
         const storedUser = await getStoredAuthUser();
         const backendUser = token ? await fetchCurrentBackendUser(token).catch(() => undefined) : undefined;
         const sessionUser = backendUser ?? storedUser;
@@ -253,7 +283,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         }
 
         if (remoteChats) {
-          setThreads(remoteChats.map(chat => normalizeBackendChat(chat, sessionAuthorId || currentUserId)));
+          const normalizedChats = remoteChats.map(chat => normalizeBackendChat(chat, sessionAuthorId || currentUserId));
+          setThreads(current => mergeThreadsFromServer(current.length ? current : persistedState?.threads ?? [], normalizedChats));
         } else if (!persistedState?.threads?.length) {
           setThreads([]);
         }
@@ -271,6 +302,43 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       active = false;
     };
   }, [retryToken]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      setAppState(nextAppState);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isHydrating || !sessionActive || !authToken || !currentUserId || appState !== 'active') return;
+
+    let active = true;
+
+    const syncThreads = async () => {
+      try {
+        const remoteChats = await fetchBackendChats(authToken);
+        if (!active) return;
+        const normalizedChats = remoteChats.map(chat => normalizeBackendChat(chat, currentUserId));
+        setThreads(current => mergeThreadsFromServer(current, normalizedChats));
+      } catch {
+        if (!active) return;
+      }
+    };
+
+    void syncThreads();
+    const interval = setInterval(() => {
+      void syncThreads();
+    }, 5000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [appState, authToken, currentUserId, isHydrating, sessionActive]);
 
   useEffect(() => {
     if (isHydrating) return;
@@ -471,12 +539,14 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       signOut: () => {
         clearStoredAuthSession();
         setCurrentUserId('');
+        setAuthToken(undefined);
         setSessionActive(false);
       },
       deleteAccount: () => {
         clearStoredAuthSession();
         setPosts(current => current.filter(post => post.authorId !== currentUserId));
         setCurrentUserId('');
+        setAuthToken(undefined);
         setSessionActive(false);
       },
       retryData: () => setRetryToken(current => current + 1),

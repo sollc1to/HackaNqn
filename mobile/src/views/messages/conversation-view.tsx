@@ -113,9 +113,15 @@ export function ConversationView() {
     };
 
     void hydrateThread();
+    const interval = setInterval(() => {
+      if (threadId) {
+        void markThreadRead(threadId);
+      }
+    }, 4000);
 
     return () => {
       active = false;
+      clearInterval(interval);
     };
   }, [threadId]);
 
