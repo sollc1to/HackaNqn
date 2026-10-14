@@ -1,4 +1,4 @@
-# Nelün — Guía de inicio (Mobile)
+# Elün — Guía de inicio (Mobile)
 
 App móvil desarrollada con **Expo / React Native**, con un backend en **Node.js + Express + MongoDB**. Esta guía explica cómo levantar el proyecto en **Linux** y **Windows** para correr la versión mobile.
 
